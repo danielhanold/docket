@@ -1,15 +1,20 @@
 # Backlog
 
-**591 changes** — 🟡 9 proposed · ⚪ 15 deferred · ✅ 422 done · 🗑️ 145 killed
+**591 changes** — 🟣 1 groomed · 🟡 8 proposed · ⚪ 15 deferred · ✅ 422 done · 🗑️ 145 killed
 
-## 🟡 Proposed (9)
+## 🟣 Groomed (1)
+
+| # | Title | Priority | Type | Spec | Readiness |
+|---|-------|----------|------|------|-----------|
+| [0585](active/0585-post-a-ticket-update-on-request-shared-repositories.md) | Post a ticket update on request (shared repositories) | `medium` | `feat` | [spec](../superpowers/specs/2026-11-10-post-a-ticket-update-on-request-shared-repositories-design.md) | build-ready |
+
+## 🟡 Proposed (8)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
 | [0591](active/0591-follow-the-team-s-own-ticket-skill-for-project-specific-tick.md) | Follow the team's own ticket skill for project-specific ticket details | `medium` | `feat` | ⏳ waiting on #585 — not yet built |
 | [0590](active/0590-have-reviewers-check-a-build-against-its-acceptance-criteria.md) | Have reviewers check a build against its acceptance criteria when the change has them | `medium` | `feat` | needs-grooming |
 | [0589](active/0589-make-export-its-own-command-docket-export-type-change-id.md) | Make export its own command: docket export <type> <change_id> | `medium` | `refactor` | needs-grooming |
-| [0585](active/0585-post-a-ticket-update-on-request-shared-repositories.md) | Post a ticket update on request (shared repositories) | `medium` | `feat` | needs-grooming |
 | [0588](active/0588-update-tickets-automatically-in-a-private-repository.md) | Update tickets automatically in a private repository | `medium` | `feat` | ⏳ waiting on #586 — not yet built |
 | [0587](active/0587-update-tickets-automatically-after-each-event.md) | Update tickets automatically after each event | `medium` | `feat` | ⏳ waiting on #585 — not yet built |
 | [0586](active/0586-post-a-ticket-update-on-request-in-a-private-repository.md) | Post a ticket update on request in a private repository | `medium` | `feat` | ⏳ waiting on #585 — not yet built |

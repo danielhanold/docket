@@ -10,10 +10,10 @@ created: '2026-11-09'
 updated: '2026-11-10'
 depends_on: [583]
 stacked_on:
-related: [581]
+related: [581, 584, 586, 587, 591]
 discovered_from: [581]
-adrs: []
-spec:
+adrs: [162]
+spec: 'docs/superpowers/specs/2026-11-10-post-a-ticket-update-on-request-shared-repositories-design.md'
 plan:
 results:
 auto_groomable:
@@ -28,6 +28,10 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-11-10-post-a-ticket-update-on-request-shared-repositories-design.md](../../superpowers/specs/2026-11-10-post-a-ticket-update-on-request-shared-repositories-design.md) |
+| ADRs | [ADR-0162](../../adrs/0162-ticket-work-is-two-inline-skills-split-by-attended-linking-v.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -36,18 +40,14 @@ People working in the ticket system should get short, deliberate updates at the 
 
 ## What changes
 
-One read returns everything an update needs for a change and an event. `docket-update-ticket` composes the update under the editorial contract and posts it as a comment with a commit-pinned link, only for a linked ticket and only if the event has happened; a late update never misstates the current state. Failures are one report line; nothing is reported posted without the connector's confirmation. Fixed by the spec: the four comment events (spec written, PR opened, PR merged, results completed) and their content, no ledger or retry, plans never go out. An on-request change-created update is ticket creation, which belongs to `docket-link-ticket` (change 584); this skill points the person there. Left to grooming: the read operation's exact fields, whether shared mode also adds a native web link.
+One read operation, `context.ticket`, returns everything an update needs for a change and an event: the ticket link, the repository's visibility, whether the event has happened and the facts behind it, and spec and results links pinned to a commit. A new inline skill, `docket-update-ticket`, posts a short comment on request after any of four events (spec written, PR opened, PR merged, results completed), and for revision, blocker, and kill updates. It refuses when the change has no ticket or the event has not happened, writes the comment for a person reading it in the ticket system, mentions the people the requester names so they are notified, and reports an update as posted only on the connector's confirmation. The PR-opened update links the PR, the spec, and the results. Links live in the comment only. In a private repository it posts nothing yet.
 
-**Acceptance criteria:** The read returns ticket state, visibility, switch, event facts, artifact paths, and pinned URLs, with tests; the skill refuses a change without a ticket and an event that has not happened; results list an Important live check.
+It also fixes two leftovers from change 584: `docket-export`'s example that implies it posts ticket comments, and the config reference calling `tickets.provider`, `tickets.site`, and `tickets.project` unused.
 
-**Covers (581 spec):** decision 1 (on request), decision 2 (the four comment events' preconditions and content; the on-request-only cases), decision 3 (except attachment order), decision 9 (shared delivery), decision 10's read operation, the `docket-update-ticket` skill and its progressive-disclosure layout, decision 11, decision 12
+## Acceptance criteria
 
-**Likely touches:** new read operation (`context.ticket`, see answer (c)); a commit-pinned URL builder beside `BlobURL` in `internal/render/link.go`; new inline skill `docket-update-ticket` with its per-event table and a shared-delivery reference
-
-**Design source:** this change is position 4 of the ticket-integration split planned by change 581. The settled design lives in 581's spec, `docs/superpowers/specs/2026-11-09-split-the-ticket-integration-design-into-buildable-changes-design.md`, and its plan in `docs/results/2026-11-09-split-the-ticket-integration-design-into-buildable-changes-results.md` (the entry for position 4, *Coverage check*, *ADRs*, and *Trace notes*). Binding sections: Decisions 1 (How an update reaches a ticket), 2 (Events), 3 (Who posts, and what happens on failure), 9 (Delivery by visibility — shared), 10 (Layering — `docket-update-ticket` and the read operation), 11 (Editorial contract), and 12 (Harness responsibility), plus *Vocabulary*, *Out of scope*, and *What the code says today*; and the results' answer (c) on the read operation's shape. Grooming must read those sections and **restate the settled decisions this change carries in its own spec** — do not merely link to them — so the build needs nothing from change 581. Anything 581 marks as fixed is not reopened; only the points it leaves to grooming are decided here.
-
-**Known leftover from change 584:** `docket-export` still uses the example "add the spec for 9 as a comment on PROJ-123", which could steer an agent toward posting a ticket comment through export. Ticket work now lives in `docket-link-ticket` (584), and this change adds `docket-update-ticket`, so this change also updates that example (or removes it) so export no longer implies it can post ticket comments, and points that kind of request to `docket-update-ticket`.
+`context.ticket` returns the ticket state, visibility, the event's switch and whether it happened, the facts the update needs, and pinned spec and results links, with tests for each event; the skill refuses a change without a ticket, a broken link, a mismatched ticket, an event that has not happened, and a private repository; a mention goes out only for exactly one match; repository guards check the skill's text; results list an Important live check from another repository.
 
 ## Out of scope
 
-Private repositories (change 586); automatic posting (change 587).
+Private repositories (change 586); automatic posting (change 587); following a team's own ticket skill (change 591); native ticket web links; attachments.
