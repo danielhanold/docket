@@ -1582,6 +1582,28 @@ var alignmentContracts = []proseContract{
 			"Unlink only when the person asks.",
 		},
 		absent: []string{"context: fork", "agent: docket-link-ticket"}},
+	// change 0584 — the push path: an existing or broken link stops before the
+	// readiness check; refinement only while proposed; the spec is the proposed
+	// approach, never a local path; one approval; record after confirmation, and
+	// a failed record never creates a second ticket.
+	{sentinel: "change_0584_link_ticket_skill", file: "skills/docket-link-ticket/references/create.md",
+		present: []string{
+			"If the change's record carries a `ticket`, refuse and name it (`#12 is already linked to CLOUD-123 <url>`); nothing else happens.",
+			"A `ticket-link-invalid` finding on the change also stops here: otherwise the ticket would be created and could never be recorded.",
+			"Could another engineer take ownership of this as a user story?",
+			"an existing spec never turns its technical choices into requirements",
+			"Write the answers through `change.groom` with `outcome: revise` and its owned sections, which works only while the change is `proposed`.",
+			"Past `proposed`, build the ticket from the change as it stands: name what is missing and let the person decide whether to go ahead.",
+			"Never invent scope or acceptance criteria, and never promote an unreviewed solution into a requirement.",
+			"`fix` maps to the bug type, `feat` to the story or feature type, and any other type to the task type.",
+			"The spec is always included, labeled as the proposed approach, never as requirements.",
+			"A local path never goes into a ticket.",
+			"Show the person, in one message, the title, the project, the mapped type, the body as it will be posted, the spec line or attachment name, and in a private repository the before → after list for the body and the spec.",
+			"Create only on their go.",
+			"The description is written once and never rewritten.",
+			"Never assume a one-call upload, and never substitute a local path for an attachment.",
+			"If recording fails, report the created ticket's URL and retry the link with a fresh `path` and `revision`; never create a second ticket.",
+		}},
 }
 
 // oneLayoutAbsent are the retired metadata-layout spellings.
