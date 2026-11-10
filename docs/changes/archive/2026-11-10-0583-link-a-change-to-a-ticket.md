@@ -2,12 +2,12 @@
 id: 583
 slug: 'link-a-change-to-a-ticket'
 title: 'Link a change to a ticket'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'feat'
 deliverable: 'pr'
 created: '2026-11-09'
-updated: '2026-11-09'
+updated: '2026-11-10'
 depends_on: []
 stacked_on:
 related: [581]
@@ -31,6 +31,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-11-09-link-a-change-to-a-ticket-design.md](../../superpowers/specs/2026-11-09-link-a-change-to-a-ticket-design.md) |
+| Spec (merged) | [2026-11-09-link-a-change-to-a-ticket-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-11-09-link-a-change-to-a-ticket-design.md) |
 | Plan | [2026-11-09-link-a-change-to-a-ticket.md](../../superpowers/plans/2026-11-09-link-a-change-to-a-ticket.md) |
 | Results | [2026-11-09-link-a-change-to-a-ticket-results.md](../../results/2026-11-09-link-a-change-to-a-ticket-results.md) |
 | ADRs | [ADR-0161](../../adrs/0161-ticket-fields-are-three-flat-stored-scalars-and-issue-is-ret.md) |

@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0583 — Link a change to a ticket](../../changes/active/0583-link-a-change-to-a-ticket.md)**
+> ↩ **[Change 0583 — Link a change to a ticket](../../changes/archive/2026-11-10-0583-link-a-change-to-a-ticket.md)**
 <!-- docket:backlink:end -->
 
 # Link a change to a ticket Implementation Plan
