@@ -667,6 +667,7 @@ func corpusRecords(snap domain.Snapshot, blobByPath map[string]StatusBlob) []Sta
 			Location: string(b.Location),
 			Path:     c.Path(),
 			Revision: b.Revision,
+			Ticket:   contextTicket(c),
 		})
 	}
 

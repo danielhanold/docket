@@ -71,6 +71,10 @@ type StatusRecord struct {
 	Location string `json:"location"` // named domain location string
 	Path     string `json:"path"`
 	Revision string `json:"revision"` // blob object id
+	// Ticket is the change's ticket link, set only on change rows whose
+	// Change.Ticket reports a complete, valid link; same shape as
+	// ContextEntitySummary.Ticket.
+	Ticket *ContextTicket `json:"ticket,omitempty"`
 }
 
 // StatusFinding is one normalized health finding. It carries the DTO's own

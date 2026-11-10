@@ -208,6 +208,97 @@ func TestStatusRecordsOptIn(t *testing.T) {
 	}
 }
 
+// TestStatusRecordsCarryTicket: a records row for a change with a complete,
+// valid ticket link carries that link exactly as stored — including an
+// archived or type-filtered change absent from changes — while unlinked,
+// partially linked, and invalid-URL changes and non-change rows carry no
+// ticket key at all, and changes rows never do.
+func TestStatusRecordsCarryTicket(t *testing.T) {
+	archived := changeBlob(5, "five", "fix", "high",
+		"ticket_provider: jira\nticket_id: CLOUD-500\nticket_url: 'https://tickets.example.com/browse/CLOUD-500'\n")
+	archived.Location = repository.LocationArchive
+	archived.Path = "docs/changes/archive/2026-01-03-0005-five.md"
+	archived.Data = []byte(strings.Replace(string(archived.Data), "status: proposed", "status: done", 1))
+	fake := &fakeReader{
+		pin: docketPin(t),
+		corpus: []StatusBlob{
+			changeBlob(1, "linked", "feat", "high", "ticket_provider: jira\nticket_id: CLOUD-123\nticket_url: 'https://tickets.example.com/browse/CLOUD-123?focus=1'\n"),
+			changeBlob(2, "plain", "feat", "high", ""),
+			changeBlob(3, "partial", "feat", "high", "ticket_provider: jira\nticket_id: CLOUD-123\n"),
+			changeBlob(4, "badurl", "feat", "high", "ticket_provider: jira\nticket_id: CLOUD-123\nticket_url: 'javascript:x'\n"),
+			archived,
+			adrBlob(71, "an-adr"),
+		},
+		facts: domain.NewBranchFacts(nil),
+	}
+	res := Status(context.Background(), fake, StatusOptions{IncludeRecords: true, Types: []string{"feat"}})
+	if res.Result != ResultApplied {
+		t.Fatalf("result = %q, want applied; message=%q", res.Result, res.Message)
+	}
+	if res.Records == nil {
+		t.Fatal("IncludeRecords did not populate records")
+	}
+	want := map[string]*ContextTicket{
+		"change/0001": {Provider: "jira", ID: "CLOUD-123", URL: "https://tickets.example.com/browse/CLOUD-123?focus=1"},
+		"change/0002": nil,
+		"change/0003": nil,
+		"change/0004": nil,
+		"change/0005": {Provider: "jira", ID: "CLOUD-500", URL: "https://tickets.example.com/browse/CLOUD-500"},
+		"adr/0071":    nil,
+	}
+	seen := map[string]bool{}
+	for _, r := range *res.Records {
+		k := r.Kind + "/" + r.Identity
+		w, ok := want[k]
+		if !ok {
+			t.Errorf("unexpected record %s", k)
+			continue
+		}
+		seen[k] = true
+		if !reflect.DeepEqual(r.Ticket, w) {
+			t.Errorf("record %s ticket = %+v, want %+v", k, r.Ticket, w)
+		}
+	}
+	for k := range want {
+		if !seen[k] {
+			t.Errorf("record %s missing", k)
+		}
+	}
+	for _, c := range res.Changes {
+		if c.ID == 5 {
+			t.Errorf("archived fix change 5 appears in changes: %+v", c)
+		}
+	}
+
+	b, err := json.Marshal(res)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Records []map[string]any `json:"records"`
+		Changes []map[string]any `json:"changes"`
+	}
+	if err := json.Unmarshal(b, &doc); err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range doc.Records {
+		_, has := r["ticket"]
+		id, _ := r["identity"].(string)
+		wantKey := r["kind"] == "change" && (id == "0001" || id == "0005")
+		if has != wantKey {
+			t.Errorf("record %v/%s: ticket key present = %v, want %v (%v)", r["kind"], id, has, wantKey, r["ticket"])
+		}
+	}
+	if len(doc.Changes) == 0 {
+		t.Fatal("no changes rows to check")
+	}
+	for _, c := range doc.Changes {
+		if _, has := c["ticket"]; has {
+			t.Errorf("changes row carries a ticket key: %v", c)
+		}
+	}
+}
+
 // TestStatusSourceDistinction is the artifact-source-distinction probe target:
 // the operation asks the metadata source for the spec, the plan, and the
 // results, and asks the integration source for a plan or results only when the
