@@ -22,7 +22,7 @@ branch_prefix:
 branch: 'feat/create-a-ticket-from-a-change-or-a-change-from-a-ticket'
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -58,3 +58,9 @@ One ticket may sit on several changes; the skill names the others and goes ahead
 ## Out of scope
 
 Posting ticket updates (changes 585–588); automatic ticket creation at change creation (change 587); rewriting a ticket's description after creation; any ticket-system call from this repository.
+
+## Reconcile log
+
+### 2026-11-10
+
+Unchanged against main c824883b6: 582 and 583 are done; ContextTicket (internal/app/implementation_context.go) and change.link-ticket exist as the spec assumes; StatusRecord has no ticket yet; docket-export still claims ticket work; no docket-link-ticket skill exists.
