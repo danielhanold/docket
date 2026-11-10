@@ -23,7 +23,7 @@ your strongest model at higher effort.
 
 `docket-export` also runs inline at your session's model and effort; it runs one export and needs
 no particular model. `docket-link-ticket` runs inline too, because it works with you and posts
-through your session's connector.
+through your session's connector. `docket-update-ticket` runs inline as well, for the same reason.
 
 To change the model or effort an autonomous skill runs at:
 
@@ -109,7 +109,8 @@ the two interactive brainstorm skills (`docket-new-change`, `docket-groom-next`)
 headless drive is authorized by
 [naming ids](../guide/landing-changes.md) instead) do not, and neither does `docket-export`, which
 posts through your session's own tools and may ask you before a private-repository post, nor
-`docket-link-ticket`, which works with you and posts through your session's connector.
+`docket-link-ticket`, which works with you and posts through your session's connector, nor
+`docket-update-ticket`, which posts through it too.
 
 **The two invocation paths.** **Dispatch** — launching a named agent to do a step and waiting for it
 to return — is one way to reach a pinned wrapper; a plain skill-invoke, forked, is the other. Both

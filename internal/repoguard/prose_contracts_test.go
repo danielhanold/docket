@@ -1554,7 +1554,7 @@ var alignmentContracts = []proseContract{
 			"the export never reports them, so search the whole copy on every private export",
 		}},
 	{sentinel: "change_0578_export_skill", file: "skills/docket-convention/SKILL.md",
-		present: []string{"(`docket-new-change`, `docket-groom-next`), `docket-export`, and `docket-link-ticket` stay inline"}},
+		present: []string{"(`docket-new-change`, `docket-groom-next`), `docket-export`, `docket-link-ticket`, and `docket-update-ticket` stay inline"}},
 	{sentinel: "change_0578_export_skill", file: "docs/reference/cli.md",
 		present: []string{"Agent sessions reach the export through the `docket-export` skill."}},
 	{sentinel: "change_0578_export_skill", file: "docs/reference/skills-and-agents.md",
@@ -1620,7 +1620,7 @@ var alignmentContracts = []proseContract{
 	// change 0584 — docket-link-ticket joins the inline skills in the agent
 	// layer and the reference docs.
 	{sentinel: "change_0584_link_ticket_skill", file: "skills/docket-convention/references/agent-layer.md",
-		present: []string{"the two interactive skills, `docket-export`, and `docket-link-ticket` stay inline"}},
+		present: []string{"the two interactive skills, `docket-export`, `docket-link-ticket`, and `docket-update-ticket` stay inline"}},
 	{sentinel: "change_0584_link_ticket_skill", file: "docs/reference/skills-and-agents.md",
 		present: []string{"- **docket-link-ticket** —"}},
 	{sentinel: "change_0584_link_ticket_skill", file: "docs/reference/glossary.md",
@@ -1661,6 +1661,30 @@ var alignmentContracts = []proseContract{
 			"Links live in the comment only",
 			"never substitute a local path",
 		}},
+	// change 0585 — docket-update-ticket joins the inline skills: export and
+	// link-ticket route update requests to it, the reference docs list it, and
+	// the tickets.provider/site/project keys now have an effect.
+	{sentinel: "change_0585_update_ticket_skill", file: "skills/docket-export/SKILL.md",
+		present: []string{"Posting an update or comment to a ticket is `docket-update-ticket`'s job."},
+		absent:  []string{"as a comment on PROJ-123"}},
+	{sentinel: "change_0585_update_ticket_skill", file: "skills/docket-link-ticket/SKILL.md",
+		present: []string{"- **Not this skill's.** Posting an update or comment to a ticket (`update CLOUD-123 now that the PR is open`) is `docket-update-ticket`'s job."}},
+	{sentinel: "change_0585_update_ticket_skill", file: "docs/reference/skills-and-agents.md",
+		present: []string{"- **docket-update-ticket** —"}},
+	{sentinel: "change_0585_update_ticket_skill", file: "docs/reference/glossary.md",
+		present: []string{
+			"### docket-update-ticket",
+			"- [docket-update-ticket](#docket-update-ticket)",
+			"### Ticket context",
+			"- [Ticket context](#ticket-context)",
+		}},
+	{sentinel: "change_0585_update_ticket_skill", file: "docs/reference/config-keys.md",
+		present: []string{
+			"| `tickets.provider` | `\"\"` (unset) | repo-only | the ticket system this repository's changes link to (jira, linear, …); used when linking or creating a ticket |",
+			"; used when linking a ticket by URL or id |",
+			"; used when creating a ticket |",
+		},
+		absent: []string{"(jira, linear, …); no effect yet |"}},
 }
 
 // oneLayoutAbsent are the retired metadata-layout spellings.
