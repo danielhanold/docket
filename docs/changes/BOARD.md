@@ -1,12 +1,12 @@
 # Backlog
 
-**591 changes** — 🟣 1 groomed · 🟡 8 proposed · ⚪ 15 deferred · ✅ 422 done · 🗑️ 145 killed
+**591 changes** — 🟢 1 in progress · 🟡 8 proposed · ⚪ 15 deferred · ✅ 422 done · 🗑️ 145 killed
 
-## 🟣 Groomed (1)
+## 🟢 In progress (1)
 
-| # | Title | Priority | Type | Spec | Readiness |
-|---|-------|----------|------|------|-----------|
-| [0585](active/0585-post-a-ticket-update-on-request-shared-repositories.md) | Post a ticket update on request (shared repositories) | `medium` | `feat` | [spec](../superpowers/specs/2026-11-10-post-a-ticket-update-on-request-shared-repositories-design.md) | build-ready |
+| # | Title | Priority | Type | Spec | Branch | State |
+|---|-------|----------|------|------|--------|-------|
+| [0585](active/0585-post-a-ticket-update-on-request-shared-repositories.md) | Post a ticket update on request (shared repositories) | `medium` | `feat` | [spec](../superpowers/specs/2026-11-10-post-a-ticket-update-on-request-shared-repositories-design.md) | `feat/post-a-ticket-update-on-request-shared-repositories` | building |
 
 ## 🟡 Proposed (8)
 

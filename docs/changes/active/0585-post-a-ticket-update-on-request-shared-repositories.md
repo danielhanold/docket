@@ -2,7 +2,7 @@
 id: 585
 slug: 'post-a-ticket-update-on-request-shared-repositories'
 title: 'Post a ticket update on request (shared repositories)'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'feat'
 deliverable: 'pr'
@@ -19,7 +19,7 @@ results:
 auto_groomable:
 hold:
 branch_prefix:
-branch:
+branch: 'feat/post-a-ticket-update-on-request-shared-repositories'
 pr:
 blocked_by:
 reconciled: false
