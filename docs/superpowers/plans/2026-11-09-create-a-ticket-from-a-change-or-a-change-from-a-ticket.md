@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0584 — Create a ticket from a change, or a change from a ticket](../../changes/active/0584-create-a-ticket-from-a-change-or-a-change-from-a-ticket.md)**
+> ↩ **[Change 0584 — Create a ticket from a change, or a change from a ticket](../../changes/archive/2026-11-10-0584-create-a-ticket-from-a-change-or-a-change-from-a-ticket.md)**
 <!-- docket:backlink:end -->
 
 # Create a ticket from a change, or a change from a ticket Implementation Plan

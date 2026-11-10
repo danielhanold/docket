@@ -2,7 +2,7 @@
 id: 584
 slug: 'create-a-ticket-from-a-change-or-a-change-from-a-ticket'
 title: 'Create a ticket from a change, or a change from a ticket'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'feat'
 deliverable: 'pr'
@@ -31,6 +31,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-11-10-create-a-ticket-from-a-change-or-a-change-from-a-ticket-design.md](../../superpowers/specs/2026-11-10-create-a-ticket-from-a-change-or-a-change-from-a-ticket-design.md) |
+| Spec (merged) | [2026-11-10-create-a-ticket-from-a-change-or-a-change-from-a-ticket-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-11-10-create-a-ticket-from-a-change-or-a-change-from-a-ticket-design.md) |
 | Plan | [2026-11-09-create-a-ticket-from-a-change-or-a-change-from-a-ticket.md](../../superpowers/plans/2026-11-09-create-a-ticket-from-a-change-or-a-change-from-a-ticket.md) |
 | Results | [2026-11-09-create-a-ticket-from-a-change-or-a-change-from-a-ticket-results.md](../../results/2026-11-09-create-a-ticket-from-a-change-or-a-change-from-a-ticket-results.md) |
 | ADRs | [ADR-0044](../../adrs/0044-autonomy-precedence-call-site-pre-specification.md), [ADR-0161](../../adrs/0161-ticket-fields-are-three-flat-stored-scalars-and-issue-is-ret.md), [ADR-0162](../../adrs/0162-ticket-work-is-two-inline-skills-split-by-attended-linking-v.md) |
