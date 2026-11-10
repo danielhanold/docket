@@ -10,8 +10,8 @@ import (
 
 // TestUpdateTicketSkillIsInline pins docket-update-ticket as an inline skill whose
 // description names its ask in conversational words, disclaims creating or
-// linking, and uses the ticket vocabulary only; and checks that the reference
-// SKILL.md routes to exists.
+// linking, and uses the ticket vocabulary only; and checks that every
+// reference SKILL.md routes to exists.
 func TestUpdateTicketSkillIsInline(t *testing.T) {
 	const name = "docket-update-ticket"
 	assertInlineSkill(t, name, []string{
@@ -25,13 +25,28 @@ func TestUpdateTicketSkillIsInline(t *testing.T) {
 			t.Errorf("%s description uses %q; the item is a ticket: %q", name, word, desc)
 		}
 	}
-	// SKILL.md routes shared delivery to this file; a missing one leaves a
-	// blocking read with nothing to read.
-	p := filepath.Join(guardRoot(t), "skills", name, "references", "shared.md")
-	if _, err := os.Stat(p); err != nil {
-		t.Errorf("%s routes to references/shared.md, which cannot be read: %v", name, err)
+	// Every reference SKILL.md routes to must exist: a missing one leaves a
+	// blocking read with nothing to read. Each visibility needs its own
+	// delivery reference, so both routes must be present.
+	routed := map[string]bool{}
+	for _, m := range referenceRoute.FindAllStringSubmatch(body, -1) {
+		routed[m[1]] = true
+	}
+	for _, ref := range []string{"shared.md", "private.md"} {
+		if !routed[ref] {
+			t.Errorf("%s routes to no references/%s; each visibility needs its delivery reference", name, ref)
+		}
+	}
+	for ref := range routed {
+		p := filepath.Join(guardRoot(t), "skills", name, "references", ref)
+		if _, err := os.Stat(p); err != nil {
+			t.Errorf("%s routes to references/%s, which cannot be read: %v", name, ref, err)
+		}
 	}
 }
+
+// referenceRoute matches a route from a skill body to one of its references.
+var referenceRoute = regexp.MustCompile(`references/([a-z0-9-]+\.md)`)
 
 // typedMention matches an at-sign directly before a name: the plain-text
 // stand-in for a mention, which notifies nobody.
