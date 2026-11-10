@@ -1,12 +1,12 @@
 # Backlog
 
-**591 changes** — 🟣 1 groomed · 🟡 7 proposed · ⚪ 15 deferred · ✅ 423 done · 🗑️ 145 killed
+**591 changes** — 🟢 1 in progress · 🟡 7 proposed · ⚪ 15 deferred · ✅ 423 done · 🗑️ 145 killed
 
-## 🟣 Groomed (1)
+## 🟢 In progress (1)
 
-| # | Title | Priority | Type | Spec | Readiness |
-|---|-------|----------|------|------|-----------|
-| [0586](active/0586-post-a-ticket-update-on-request-in-a-private-repository.md) | Post a ticket update on request in a private repository | `medium` | `feat` | [spec](../superpowers/specs/2026-11-10-post-a-ticket-update-on-request-in-a-private-repository-design.md) | build-ready |
+| # | Title | Priority | Type | Spec | Branch | State |
+|---|-------|----------|------|------|--------|-------|
+| [0586](active/0586-post-a-ticket-update-on-request-in-a-private-repository.md) | Post a ticket update on request in a private repository | `medium` | `feat` | [spec](../superpowers/specs/2026-11-10-post-a-ticket-update-on-request-in-a-private-repository-design.md) | `feat/post-a-ticket-update-on-request-in-a-private-repository` | building |
 
 ## 🟡 Proposed (7)
 

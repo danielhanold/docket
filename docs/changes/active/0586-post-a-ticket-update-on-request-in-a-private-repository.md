@@ -2,7 +2,7 @@
 id: 586
 slug: 'post-a-ticket-update-on-request-in-a-private-repository'
 title: 'Post a ticket update on request in a private repository'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'feat'
 deliverable: 'pr'
@@ -19,7 +19,7 @@ results:
 auto_groomable:
 hold:
 branch_prefix:
-branch:
+branch: 'feat/post-a-ticket-update-on-request-in-a-private-repository'
 pr:
 blocked_by:
 reconciled: false
