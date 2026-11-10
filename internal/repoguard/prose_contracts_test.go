@@ -1625,6 +1625,42 @@ var alignmentContracts = []proseContract{
 		present: []string{"- **docket-link-ticket** —"}},
 	{sentinel: "change_0584_link_ticket_skill", file: "docs/reference/glossary.md",
 		present: []string{"### docket-link-ticket", "- [docket-link-ticket](#docket-link-ticket)"}},
+	// change 0585 — the inline update skill: on request only; refusals; the
+	// per-event links; plans never go out; layout for a person in the ticket
+	// system; real mentions only; posted only on confirmation; shared delivery
+	// in its own reference.
+	{sentinel: "change_0585_update_ticket_skill", file: "skills/docket-update-ticket/SKILL.md",
+		present: []string{
+			"This skill runs inline, in your own session, and only when the person asks",
+			"run the read without `--event`",
+			"`not-linked`: say the change has no ticket (`#612 has no ticket`)",
+			"`partial`: the link is broken; point the person to `docket-link-ticket` to fix or remove it",
+			"The request names a different ticket than `ticket.id`: say which ticket the change carries",
+			"never say the PR has not merged",
+			"`visibility` is `private`: say private repositories are not supported yet",
+			"Plans never go out: no link to a plan and nothing from one.",
+			"A late update never misstates the current state",
+			"| the PR, the spec, and the results file |",
+			"never a claim of deployment or acceptance",
+			"Write for a person reading the comment in the ticket system.",
+			"Use the format the connector accepts, so the layout survives posting.",
+			"Label links (`Spec:`, `Results:`).",
+			"**Exactly one match:** mention that person and post",
+			"**Several matches:** ask the person which one",
+			"**No match:** ask the person whether to post without that mention or try a different spelling",
+			"Never substitute plain text such as \"@Jane\", which notifies nobody.",
+			"Report the update as posted only with the connector's confirmation",
+			"Never run a retry loop.",
+			"When `visibility` is `shared`, **read `references/shared.md` now (blocking)**.",
+		},
+		absent: []string{"context: fork", "agent: docket-update-ticket"}},
+	{sentinel: "change_0585_update_ticket_skill", file: "skills/docket-update-ticket/references/shared.md",
+		present: []string{
+			"Each `url` is pinned to `metadata_commit`",
+			"Never build a link yourself",
+			"Links live in the comment only",
+			"never substitute a local path",
+		}},
 }
 
 // oneLayoutAbsent are the retired metadata-layout spellings.
