@@ -14,7 +14,7 @@ related: [581, 578, 585]
 discovered_from: [581]
 adrs: [44, 161]
 spec: 'docs/superpowers/specs/2026-11-10-create-a-ticket-from-a-change-or-a-change-from-a-ticket-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-11-09-create-a-ticket-from-a-change-or-a-change-from-a-ticket.md'
 results:
 auto_groomable:
 hold:
@@ -31,6 +31,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-11-10-create-a-ticket-from-a-change-or-a-change-from-a-ticket-design.md](../../superpowers/specs/2026-11-10-create-a-ticket-from-a-change-or-a-change-from-a-ticket-design.md) |
+| Plan | [2026-11-09-create-a-ticket-from-a-change-or-a-change-from-a-ticket.md](../../superpowers/plans/2026-11-09-create-a-ticket-from-a-change-or-a-change-from-a-ticket.md) |
 | ADRs | [ADR-0044](../../adrs/0044-autonomy-precedence-call-site-pre-specification.md), [ADR-0161](../../adrs/0161-ticket-fields-are-three-flat-stored-scalars-and-issue-is-ret.md) |
 <!-- docket:artifacts:end -->
 
