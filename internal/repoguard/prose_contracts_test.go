@@ -1649,6 +1649,7 @@ var alignmentContracts = []proseContract{
 			"**Several matches:** ask the person which one",
 			"**No match:** ask the person whether to post without that mention or try a different spelling",
 			"Never substitute plain text such as \"@Jane\", which notifies nobody.",
+			"`<mention: Jane Doe>` stands for the ticket system's real mention, never typed text",
 			"Report the update as posted only with the connector's confirmation",
 			"Never run a retry loop.",
 			"When `visibility` is `shared`, **read `references/shared.md` now (blocking)**.",
