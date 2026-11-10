@@ -7,13 +7,13 @@ priority: 'medium'
 type: 'feat'
 deliverable: 'pr'
 created: '2026-11-09'
-updated: '2026-11-09'
+updated: '2026-11-10'
 depends_on: [585]
 stacked_on:
-related: [581]
+related: [581, 585, 588]
 discovered_from: [581]
 adrs: []
-spec:
+spec: 'docs/superpowers/specs/2026-11-10-post-a-ticket-update-on-request-in-a-private-repository-design.md'
 plan:
 results:
 auto_groomable:
@@ -28,6 +28,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-11-10-post-a-ticket-update-on-request-in-a-private-repository-design.md](../../superpowers/specs/2026-11-10-post-a-ticket-update-on-request-in-a-private-repository-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -36,16 +39,16 @@ In a private repository the artifact cannot be linked; it must be cleaned and at
 
 ## What changes
 
-The update exports and cleans the artifact through docket-export with its normal before → after review, uploads the attachment first (in two steps where the connector needs it) and posts the comment last, naming the attachment. A failed required upload posts nothing.
+In a private repository, `docket-update-ticket` stops refusing and delivers the update as attachments plus a comment. Each artifact the update names (the same per-update list shared delivery links) is exported and cleaned through `docket-export` as a file request, uploaded to the ticket first (in two steps where the connector needs it), and named in the comment, which goes last. The PR stays a link. The agent writes the comment under the private-repository writing rule and quietly fixes its own text after a whole-word check over the comment and the attachment file names. The person is asked once, only when the export rewrote something, with the before → after list; otherwise the update posts straight away. Any failed or uncertain upload posts no comment, and the report names what already landed and the exported paths.
 
-**Acceptance criteria:** The skill text covers the attachment order and failure path; results list an Important live check from a private scratch repository.
+No binary change: `context.ticket` and `docket-export` already provide what this needs. The work is a new `references/private.md`, the private route in `SKILL.md`, docs, guards, and budgets.
 
-**Covers (581 spec):** decision 3's attachment order, decision 9 (private delivery, attended; the two-step attachment)
+## Acceptance criteria
 
-**Likely touches:** `docket-update-ticket`'s private-delivery reference; uses docket-export unchanged (attended)
-
-**Design source:** this change is position 5 of the ticket-integration split planned by change 581. The settled design lives in 581's spec, `docs/superpowers/specs/2026-11-09-split-the-ticket-integration-design-into-buildable-changes-design.md`, and its plan in `docs/results/2026-11-09-split-the-ticket-integration-design-into-buildable-changes-results.md` (the entry for position 5, *Coverage check*, *ADRs*, and *Trace notes*). Binding sections: Decisions 3 (attachments first, comment last) and 9 (Delivery by visibility — private, attended), plus *Vocabulary*, *Editorial contract*, and *Out of scope*. Grooming must read those sections and **restate the settled decisions this change carries in its own spec** — do not merely link to them — so the build needs nothing from change 581. Anything 581 marks as fixed is not reopened; only the points it leaves to grooming are decided here.
+- In a private repository the skill no longer refuses; it loads its private-delivery reference.
+- The skill text covers the attachment list, the export call, the comment's writing rule and quiet self-fix, the single review stop on a rewrite, attachments first and comment last, the two-step upload, and the no-comment rule on any failed upload; guards pin each and redden when it is removed.
+- The results list an Important live check from a private scratch repository against a sandbox ticket project, including a forced upload failure.
 
 ## Out of scope
 
-Unattended private posting and the leak-pattern check (change 588).
+Unattended private posting, the final leak-pattern check, and unknown visibility treated as private (change 588); automatic posting (change 587); any change to `context.ticket`, `docket-export`, or the leak patterns; deleting attachments from a ticket, retrying, or recording what was posted.
