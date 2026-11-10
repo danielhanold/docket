@@ -1851,7 +1851,8 @@ inline.
 The skill an agent session uses to post an update to a change's linked ticket when you ask. It posts
 one short comment through your session's own connector, with spec and results links pinned to the
 commit that holds them, and reports the update as posted only when the connector confirms. In a
-private repository it posts nothing yet.
+private repository it attaches cleaned copies of the spec and results instead of linking them, and
+posts the comment only after every attachment lands.
 
 **Used for:** telling people in the ticket system that something happened. It runs inline, because
 it posts through your session's connector.
