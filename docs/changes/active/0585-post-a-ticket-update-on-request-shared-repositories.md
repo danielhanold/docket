@@ -15,7 +15,7 @@ discovered_from: [581]
 adrs: [162]
 spec: 'docs/superpowers/specs/2026-11-10-post-a-ticket-update-on-request-shared-repositories-design.md'
 plan: 'docs/superpowers/plans/2026-11-10-post-a-ticket-update-on-request-shared-repositories.md'
-results:
+results: 'docs/results/2026-11-10-post-a-ticket-update-on-request-shared-repositories-results.md'
 auto_groomable:
 hold:
 branch_prefix:
@@ -32,6 +32,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-11-10-post-a-ticket-update-on-request-shared-repositories-design.md](../../superpowers/specs/2026-11-10-post-a-ticket-update-on-request-shared-repositories-design.md) |
 | Plan | [2026-11-10-post-a-ticket-update-on-request-shared-repositories.md](../../superpowers/plans/2026-11-10-post-a-ticket-update-on-request-shared-repositories.md) |
+| Results | [2026-11-10-post-a-ticket-update-on-request-shared-repositories-results.md](../../results/2026-11-10-post-a-ticket-update-on-request-shared-repositories-results.md) |
 | ADRs | [ADR-0162](../../adrs/0162-ticket-work-is-two-inline-skills-split-by-attended-linking-v.md) |
 <!-- docket:artifacts:end -->
 
