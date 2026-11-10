@@ -2,7 +2,7 @@
 id: 586
 slug: 'post-a-ticket-update-on-request-in-a-private-repository'
 title: 'Post a ticket update on request in a private repository'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'feat'
 deliverable: 'pr'
@@ -20,7 +20,7 @@ auto_groomable:
 hold:
 branch_prefix:
 branch: 'feat/post-a-ticket-update-on-request-in-a-private-repository'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/453'
 blocked_by:
 reconciled: true
 ---
@@ -60,3 +60,12 @@ Unattended private posting, the final leak-pattern check, and unknown visibility
 ### 2026-11-10
 
 Unchanged against `main` 3243fa5f2. Change 585 is done and its follow-up fixes (pinned reads, killed reason, mention placeholder) do not touch the private route; the `visibility` refusal in SKILL.md section 2 and the 0585 sentinel are still as the spec describes.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: f3b5c34e2bc499beaef7c123c0ada3bd901ff2f1
+ran_at:   2026-11-10T18:49:39Z
+<!-- docket:build-evidence:end -->
