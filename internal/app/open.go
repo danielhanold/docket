@@ -55,7 +55,6 @@ const (
 	ReasonOpenFileMissing        = "file-missing"
 	ReasonOpenNoOpener           = "no-opener"
 	ReasonOpenOpenerFailed       = "opener-failed"
-	ReasonOpenInvalidOption      = "invalid-option"      // an export flag used where it does not apply
 	ReasonOpenOutputPathInvalid  = "output-path-invalid" // the export destination cannot be written
 	ReasonOpenExportFailed       = "export-failed"       // reading the source or writing the copy failed
 	// ReasonOpenOutputPathProtected refuses an export destination that is the
@@ -79,11 +78,6 @@ type OpenOptions struct {
 	What    string
 	ID      int // 0 = infer from the checked-out branch
 	Print   bool
-
-	// Export writes a clean Markdown copy of the artifact and opens the copy.
-	Export     bool
-	OutputPath string // "" = the default destination
-	Warnings   string // "" = WarningsAll
 }
 
 // OpenDeps is what Open reads and runs, injected so tests start no real git
@@ -94,7 +88,7 @@ type OpenDeps struct {
 	Prepare  func(ctx context.Context, repoDir string) RepositoryPrepareResult
 	Opener   Opener
 
-	// The export destination's seams; production sets all three.
+	// The export's destination seams (Export); production sets all three.
 	HomeDir func() (string, error)
 	Getwd   func() (string, error)
 	GOOS    string
@@ -112,12 +106,6 @@ type OpenResult struct {
 	Notes      []string `json:"notes"`
 	Reason     string   `json:"reason,omitempty"`
 	Message    string   `json:"message,omitempty"`
-
-	// Export fields, set only by --export; Leftovers and Mentions follow --warnings.
-	ExportedPath string           `json:"exported_path,omitempty"`
-	Replaced     bool             `json:"replaced,omitempty"`
-	Leftovers    []ExportLeftover `json:"leftovers,omitempty"`
-	Mentions     *ExportMentions  `json:"mentions,omitempty"`
 }
 
 // HumanText renders the result for a terminal: the target alone on success
@@ -189,9 +177,7 @@ func parseChangeIDArg(raw string) (int, error) {
 // records when the id is 0) to a target and opens it. A private repository,
 // open.artifacts: local, or a non-GitHub origin opens the file from the
 // metadata checkout after preparing it; otherwise the GitHub blob page opens.
-// A change's PR always opens its URL. With Export set the local file is always
-// read and its clean copy (openExport) is what opens. With Print set nothing is
-// launched.
+// A change's PR always opens its URL. With Print set nothing is launched.
 func Open(ctx context.Context, deps OpenDeps, o OpenOptions) OpenResult {
 	res := OpenResult{What: o.What, ChangeID: o.ID, Notes: []string{}}
 	fail := func(f openFailure) OpenResult {
@@ -207,27 +193,19 @@ func Open(ctx context.Context, deps OpenDeps, o OpenOptions) OpenResult {
 		_, _, err := ParseOpenArgs(args)
 		return fail(openFailure{ResultInvalidInput, ReasonOpenInvalidTarget, err.Error()})
 	}
-	if err := ValidateOpenExport(o); err != nil {
-		return fail(openFailure{ResultInvalidInput, ReasonOpenInvalidOption, err.Error()})
-	}
 	dir, branch, pin, pf := openPrelude(ctx, deps, o.RepoDir, o.What, o.ID)
 	if pf != nil {
 		return fail(*pf)
 	}
 	eff := pin.Config.Effective
-	var (
-		rel  string
-		c    domain.Change
-		snap domain.Snapshot
-	)
+	var rel string
 	if o.What == "board" {
 		if !slices.Contains(eff.BoardSurfaces.Value, boardSurfaceInline) {
 			return fail(openFailure{ResultInvalidState, ReasonOpenBoardDisabled, "this repository has no board (board_surfaces has no inline surface)"})
 		}
 		rel = boardCorpusPath(eff)
 	} else {
-		var f *openFailure
-		c, snap, f = resolveOpenChange(ctx, deps.Reader, pin, o.ID, branch)
+		c, _, f := resolveOpenChange(ctx, deps.Reader, pin, o.ID, branch)
 		if f != nil {
 			return fail(*f)
 		}
@@ -246,9 +224,6 @@ func Open(ctx context.Context, deps OpenDeps, o OpenOptions) OpenResult {
 	}
 	if f := checkArtifactPath(o.What, rel); f != nil {
 		return fail(*f)
-	}
-	if o.Export {
-		return openExport(ctx, deps, o, dir, pin, c, snap, rel, res)
 	}
 	if pin.Layout.Mode != layout.Private && eff.Open.Artifacts.Value != "local" {
 		if u := linkContextOf(pin).BlobURL(rel); u != "" {
