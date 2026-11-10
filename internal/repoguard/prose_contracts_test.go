@@ -1695,6 +1695,7 @@ var alignmentContracts = []proseContract{
 			"If any export rewrote something, stop once: show the before → after list for each attachment and the names of the files to be attached, and post on the person's go.",
 			"If nothing was rewritten, post straight away",
 			"**Attachments first, comment last.**",
+			"Upload nothing before the post step (`SKILL.md` section 6): mentions are settled and any go the person gives comes first, so a stop at a mention question leaves nothing on the ticket.",
 			"Never assume a one-call upload",
 			"`uploadAttachmentToJiraIssue` first returns an upload command to run from the shell",
 			"If you cannot run that step, the upload has failed.",
