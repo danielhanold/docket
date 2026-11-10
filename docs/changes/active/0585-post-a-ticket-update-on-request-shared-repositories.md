@@ -2,7 +2,7 @@
 id: 585
 slug: 'post-a-ticket-update-on-request-shared-repositories'
 title: 'Post a ticket update on request (shared repositories)'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'feat'
 deliverable: 'pr'
@@ -20,7 +20,7 @@ auto_groomable:
 hold:
 branch_prefix:
 branch: 'feat/post-a-ticket-update-on-request-shared-repositories'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/452'
 blocked_by:
 reconciled: true
 ---
@@ -59,3 +59,12 @@ Private repositories (change 586); automatic posting (change 587); following a t
 ### 2026-11-10
 
 Unchanged against main 6dacf9706: the spec was verified at this tip; dependency #583 and related #584 are done, and #586/#587/#591 remain proposed and out of scope.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: ab87dd3b6503c662eae7891dbd18f515a8824cb5
+ran_at:   2026-11-10T13:39:21Z
+<!-- docket:build-evidence:end -->
