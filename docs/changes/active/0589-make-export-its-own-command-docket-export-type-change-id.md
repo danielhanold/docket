@@ -2,7 +2,7 @@
 id: 589
 slug: 'make-export-its-own-command-docket-export-type-change-id'
 title: 'Make export its own command: docket export <type> <change_id>'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'refactor'
 deliverable: 'pr'
@@ -20,7 +20,7 @@ auto_groomable:
 hold:
 branch_prefix:
 branch: 'refactor/make-export-its-own-command-docket-export-type-change-id'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/454'
 ticket_provider:
 ticket_id:
 ticket_url:
@@ -65,3 +65,12 @@ Changing what the export writes (sections kept, link removal, warnings). Adding 
 ### 2026-11-10
 
 Unchanged against `main` 220692578: `open --export` still lives in internal/cli and the spec's named sites hold; no related change moved.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: 0158b77f1ba848702c566b69f3f70a1c14ca8854
+ran_at:   2026-11-10T20:42:11Z
+<!-- docket:build-evidence:end -->

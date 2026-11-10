@@ -1,12 +1,12 @@
 # Backlog
 
-**591 changes** — 🟢 1 in progress · 🟡 6 proposed · ⚪ 15 deferred · ✅ 424 done · 🗑️ 145 killed
+**591 changes** — 🔵 1 built · 🟡 6 proposed · ⚪ 15 deferred · ✅ 424 done · 🗑️ 145 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | State |
-|---|-------|----------|------|------|--------|-------|
-| [0589](active/0589-make-export-its-own-command-docket-export-type-change-id.md) | Make export its own command: docket export <type> <change_id> | `medium` | `refactor` | [spec](../superpowers/specs/2026-11-10-make-export-its-own-command-docket-export-type-change-id-design.md) | `refactor/make-export-its-own-command-docket-export-type-change-id` | building |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0589](active/0589-make-export-its-own-command-docket-export-type-change-id.md) | Make export its own command: docket export <type> <change_id> | `medium` | `refactor` | [#454](https://github.com/danielhanold/docket/pull/454) | awaiting merge |
 
 ## 🟡 Proposed (6)
 
