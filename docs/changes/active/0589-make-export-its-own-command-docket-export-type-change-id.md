@@ -25,7 +25,7 @@ ticket_provider:
 ticket_id:
 ticket_url:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -57,3 +57,9 @@ Exporting an artifact is a different job from opening one, but the CLI spells it
 ## Out of scope
 
 Changing what the export writes (sections kept, link removal, warnings). Adding export for the board or pull requests. Changes to `docket open`'s other behavior.
+
+## Reconcile log
+
+### 2026-11-10
+
+Unchanged against `main` 220692578: `open --export` still lives in internal/cli and the spec's named sites hold; no related change moved.
