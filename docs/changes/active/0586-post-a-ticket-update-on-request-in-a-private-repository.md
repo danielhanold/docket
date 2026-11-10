@@ -15,7 +15,7 @@ discovered_from: [581]
 adrs: []
 spec: 'docs/superpowers/specs/2026-11-10-post-a-ticket-update-on-request-in-a-private-repository-design.md'
 plan: 'docs/superpowers/plans/2026-11-10-post-a-ticket-update-on-request-in-a-private-repository.md'
-results:
+results: 'docs/results/2026-11-10-post-a-ticket-update-on-request-in-a-private-repository-results.md'
 auto_groomable:
 hold:
 branch_prefix:
@@ -32,6 +32,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-11-10-post-a-ticket-update-on-request-in-a-private-repository-design.md](../../superpowers/specs/2026-11-10-post-a-ticket-update-on-request-in-a-private-repository-design.md) |
 | Plan | [2026-11-10-post-a-ticket-update-on-request-in-a-private-repository.md](../../superpowers/plans/2026-11-10-post-a-ticket-update-on-request-in-a-private-repository.md) |
+| Results | [2026-11-10-post-a-ticket-update-on-request-in-a-private-repository-results.md](../../results/2026-11-10-post-a-ticket-update-on-request-in-a-private-repository-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
