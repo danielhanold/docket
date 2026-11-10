@@ -349,7 +349,8 @@ func TestRepresentativeSignatures(t *testing.T) {
 		"workspace.prepare":  "--id <id> --revision <revision> [--repo-dir <dir>]",
 		"workspace.checkout": "--id <id> [--head <ref>] [--repo-dir <dir>] [--revision <revision>]",
 		// positional target and optional id lead, the optional flags trail sorted.
-		"open": "<what> [<id>] [--export] [--output-path <path>] [--print] [--repo-dir <dir>] [--warnings <which>=all]",
+		"open":   "<what> [<id>] [--export] [--output-path <path>] [--print] [--repo-dir <dir>] [--warnings <which>=all]",
+		"export": "<type> [<id>] [--output-path <path>] [--print] [--repo-dir <dir>] [--warnings <which>=all]",
 	}
 	for id, wantSig := range want {
 		e, ok := entryByID(entries, id)
@@ -374,6 +375,11 @@ func TestRepresentativeSignatures(t *testing.T) {
 	// system opener.
 	if e, ok := entryByID(entries, "open"); !ok || strings.Join(e.Effects, " ") != "local-write process-control read" {
 		t.Errorf("open effects = %v, want [local-write process-control read]", e.Effects)
+	}
+	// export reads the corpus, prepares the metadata checkout, writes the
+	// copy, and launches the system opener.
+	if e, ok := entryByID(entries, "export"); !ok || strings.Join(e.Effects, " ") != "local-write process-control read" {
+		t.Errorf("export effects = %v, want [local-write process-control read]", e.Effects)
 	}
 	// change 0472: no catalog operation's signature carries the retired
 	// record-revision flags (the `version` op itself takes no flags).

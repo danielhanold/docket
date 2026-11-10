@@ -74,6 +74,7 @@ var operationBindings = []OperationBinding{
 	{ID: "evidence.recertify", Request: nil, Result: EvidenceRecertifyResult{}},                            // EvidenceRecertify
 	{ID: "evidence.record", Request: nil, Result: EvidenceOpResult{}},                                      // EvidenceRecord
 	{ID: "evidence.verify", Request: nil, Result: EvidenceOpResult{}},                                      // EvidenceVerify
+	{ID: "export", Request: nil, Result: ExportResult{}},                                                   // Export
 	{ID: "finalize.block", Request: FinalizeBlockInput{}, Result: BlockResult{}},                           // FinalizeBlock
 	{ID: "finalize.cleanup", Request: nil, Result: CleanupOpResult{}},                                      // FinalizeCleanup
 	{ID: "finalize.clear-block", Request: nil, Result: BlockResult{}},                                      // FinalizeClearBlock

@@ -419,6 +419,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 	finalizeCmd := newFinalizeCommand(func(r app.OperationResult) { result = r })
 	maintenanceCmd := newMaintenanceCommand(func(r app.OperationResult) { result = r })
 	openCmd := newOpenCommand(func(r app.OperationResult) { result = r })
+	exportCmd := newExportCommand(func(r app.OperationResult) { result = r })
 	repositoryCmd := newRepositoryCommand(func(r app.OperationResult) { result = r })
 	agentCmd := newAgentCommand(info, func(r app.OperationResult) { result = r })
 	instructionsCmd := newInstructionsCommand(stdin, jsonMode,
@@ -430,7 +431,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 	installCmd.AddCommand(installCheckCmd, installCollectCmd)
 	developmentCmd.AddCommand(developmentInstallCmd, developmentTestCmd)
 	diagnosticCmd.AddCommand(runtimeCmd, configCmd)
-	root.AddCommand(capabilitiesCmd, schemaCmd, versionCmd, statusCmd, changeCmd, contextCmd, workspaceCmd, evidenceCmd, prCmd, runCmd, learningCmd, adrCmd, gateCmd, finalizeCmd, maintenanceCmd, openCmd, repositoryCmd, agentCmd, instructionsCmd, diagnosticCmd, installCmd, uninstallCmd, developmentCmd)
+	root.AddCommand(capabilitiesCmd, schemaCmd, versionCmd, statusCmd, changeCmd, contextCmd, workspaceCmd, evidenceCmd, prCmd, runCmd, learningCmd, adrCmd, gateCmd, finalizeCmd, maintenanceCmd, openCmd, exportCmd, repositoryCmd, agentCmd, instructionsCmd, diagnosticCmd, installCmd, uninstallCmd, developmentCmd)
 	root.AddCommand(extra...)
 
 	// The asset-dependence guard. Commands that do not read installed assets

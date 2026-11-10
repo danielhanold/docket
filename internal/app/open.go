@@ -168,12 +168,21 @@ func ParseOpenArgs(args []string) (string, int, error) {
 	if what == "board" {
 		return "", 0, fmt.Errorf("board takes no change id — the targets are %s, and only the last five take an id", targets)
 	}
-	raw := args[1]
-	n, err := strconv.Atoi(raw)
-	if !openIDPattern.MatchString(raw) || err != nil || n <= 0 {
-		return "", 0, fmt.Errorf("invalid change id %s", raw)
+	n, err := parseChangeIDArg(args[1])
+	if err != nil {
+		return "", 0, err
 	}
 	return what, n, nil
+}
+
+// parseChangeIDArg parses a positional change id: plain decimal digits, leading
+// zeros allowed, greater than zero.
+func parseChangeIDArg(raw string) (int, error) {
+	n, err := strconv.Atoi(raw)
+	if !openIDPattern.MatchString(raw) || err != nil || n <= 0 {
+		return 0, fmt.Errorf("invalid change id %s", raw)
+	}
+	return n, nil
 }
 
 // Open resolves what (and the change id, or the change the checked-out branch
@@ -201,27 +210,9 @@ func Open(ctx context.Context, deps OpenDeps, o OpenOptions) OpenResult {
 	if err := ValidateOpenExport(o); err != nil {
 		return fail(openFailure{ResultInvalidInput, ReasonOpenInvalidOption, err.Error()})
 	}
-	if o.RepoDir == "" {
-		return fail(openFailure{ResultInvalidInput, ReasonOpenInvalidTarget, "a repository directory is required"})
-	}
-	// The checkout probe refuses a relative path, so every seam gets an
-	// absolute one.
-	dir, err := filepath.Abs(o.RepoDir)
-	if err != nil {
-		return fail(openFailure{ResultInvalidInput, ReasonOpenInvalidTarget, fmt.Sprintf("cannot resolve %s: %v", o.RepoDir, err)})
-	}
-	branch := ""
-	if o.What != "board" && o.ID == 0 { // before any fetch
-		b, f := checkoutBranch(ctx, deps.Checkout, dir)
-		if f != nil {
-			return fail(*f)
-		}
-		branch = b
-	}
-	pin, err := deps.Reader.PinContext(ctx, dir)
-	if err != nil {
-		result, reason := classifyStatusError(ctx, err)
-		return fail(openFailure{result, reason, err.Error()})
+	dir, branch, pin, pf := openPrelude(ctx, deps, o.RepoDir, o.What, o.ID)
+	if pf != nil {
+		return fail(*pf)
 	}
 	eff := pin.Config.Effective
 	var (
@@ -253,10 +244,8 @@ func Open(ctx context.Context, deps OpenDeps, o OpenOptions) OpenResult {
 			return fail(*f)
 		}
 	}
-	// A recorded path that escapes the repository is never opened, stat'ed,
-	// or linked.
-	if !filepath.IsLocal(filepath.FromSlash(rel)) {
-		return fail(openFailure{ResultInvalidState, ReasonOpenPathInvalid, fmt.Sprintf("%s path %q is not a path inside the repository", o.What, rel)})
+	if f := checkArtifactPath(o.What, rel); f != nil {
+		return fail(*f)
 	}
 	if o.Export {
 		return openExport(ctx, deps, o, dir, pin, c, snap, rel, res)
@@ -275,6 +264,43 @@ func Open(ctx context.Context, deps OpenDeps, o OpenOptions) OpenResult {
 	}
 	res.Target, res.TargetKind = path, OpenTargetKindFile
 	return finishOpen(ctx, deps, o, res)
+}
+
+// openPrelude is the common start of Open and Export: it requires a repository
+// directory and makes it absolute (the checkout probe refuses a relative
+// path), reads the checked-out branch when a change is to be inferred from it
+// (what is not the board and id is 0) before any fetch, then pins the status
+// context.
+func openPrelude(ctx context.Context, deps OpenDeps, repoDir, what string, id int) (dir string, branch string, pin StatusPin, f *openFailure) {
+	if repoDir == "" {
+		return "", "", StatusPin{}, &openFailure{ResultInvalidInput, ReasonOpenInvalidTarget, "a repository directory is required"}
+	}
+	dir, err := filepath.Abs(repoDir)
+	if err != nil {
+		return "", "", StatusPin{}, &openFailure{ResultInvalidInput, ReasonOpenInvalidTarget, fmt.Sprintf("cannot resolve %s: %v", repoDir, err)}
+	}
+	if what != "board" && id == 0 {
+		b, f := checkoutBranch(ctx, deps.Checkout, dir)
+		if f != nil {
+			return "", "", StatusPin{}, f
+		}
+		branch = b
+	}
+	pin, err = deps.Reader.PinContext(ctx, dir)
+	if err != nil {
+		result, reason := classifyStatusError(ctx, err)
+		return "", "", StatusPin{}, &openFailure{result, reason, err.Error()}
+	}
+	return dir, branch, pin, nil
+}
+
+// checkArtifactPath refuses a recorded path that escapes the repository: it is
+// never opened, stat'ed, read, or linked.
+func checkArtifactPath(what, rel string) *openFailure {
+	if !filepath.IsLocal(filepath.FromSlash(rel)) {
+		return &openFailure{ResultInvalidState, ReasonOpenPathInvalid, fmt.Sprintf("%s path %q is not a path inside the repository", what, rel)}
+	}
+	return nil
 }
 
 // localArtifact prepares the metadata checkout and returns rel's path inside
@@ -392,24 +418,31 @@ func finishOpen(ctx context.Context, deps OpenDeps, o OpenOptions, res OpenResul
 		res.Envelope = NewEnvelope(OperationOpen, ResultApplied)
 		return res
 	}
-	opener := deps.Opener
+	if f := runOpener(ctx, deps.Opener, res.Target); f != nil {
+		res.Envelope = NewEnvelope(OperationOpen, f.result)
+		res.Reason, res.Message = f.reason, f.message
+		return res
+	}
+	res.Envelope = NewEnvelope(OperationOpen, ResultApplied)
+	res.Launched = true
+	return res
+}
+
+// runOpener hands target to opener and classifies a failure: no opener on
+// this platform (a nil opener included) or the opener's own error.
+func runOpener(ctx context.Context, opener Opener, target string) *openFailure {
 	var err error
 	if opener == nil {
 		err = &NoOpenerError{GOOS: runtime.GOOS}
 	} else {
-		err = opener.Open(ctx, res.Target)
+		err = opener.Open(ctx, target)
 	}
 	var none *NoOpenerError
 	switch {
 	case errors.As(err, &none):
-		res.Envelope = NewEnvelope(OperationOpen, ResultExternalFailed)
-		res.Reason, res.Message = ReasonOpenNoOpener, none.Error()
+		return &openFailure{ResultExternalFailed, ReasonOpenNoOpener, none.Error()}
 	case err != nil:
-		res.Envelope = NewEnvelope(OperationOpen, ResultExternalFailed)
-		res.Reason, res.Message = ReasonOpenOpenerFailed, fmt.Sprintf("could not open %s: %v", res.Target, err)
-	default:
-		res.Envelope = NewEnvelope(OperationOpen, ResultApplied)
-		res.Launched = true
+		return &openFailure{ResultExternalFailed, ReasonOpenOpenerFailed, fmt.Sprintf("could not open %s: %v", target, err)}
 	}
-	return res
+	return nil
 }

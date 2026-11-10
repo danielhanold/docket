@@ -97,12 +97,12 @@ func TestPresentHumanNotesGoToStderr(t *testing.T) {
 // exactly the exported path, stderr carries the notes and then one "warning:"
 // line each, and JSON mode writes nothing to stderr.
 func TestPresenterWritesWarningsToStderr(t *testing.T) {
-	r := app.OpenResult{
-		Envelope: app.NewEnvelope(app.OperationOpen, app.ResultApplied), What: "spec",
-		Target: "/d/2026-01-02-spec-widget.md", ExportedPath: "/d/2026-01-02-spec-widget.md",
-		Notes:     []string{"replaced /d/2026-01-02-spec-widget.md"},
-		Leftovers: []app.ExportLeftover{{Line: 4, Text: "[a](b)", Rule: "link"}},
-		Mentions:  &app.ExportMentions{Count: 2, Lines: []int{1, 7}},
+	r := app.ExportResult{
+		Envelope: app.NewEnvelope(app.OperationExport, app.ResultApplied), What: "spec",
+		ExportedPath: "/d/2026-01-02-spec-widget.md",
+		Notes:        []string{"replaced /d/2026-01-02-spec-widget.md"},
+		Leftovers:    []app.ExportLeftover{{Line: 4, Text: "[a](b)", Rule: "link"}},
+		Mentions:     &app.ExportMentions{Count: 2, Lines: []int{1, 7}},
 	}
 	var out, errBuf bytes.Buffer
 	Presenter{Stdout: &out, Stderr: &errBuf}.Present(r)
