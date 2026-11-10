@@ -1674,6 +1674,7 @@ var alignmentContracts = []proseContract{
 			"This skill makes no docket metadata write.",
 			"in a private repository it also invokes `docket-export`, which writes each exported file to a temp directory and may read `leak_check.match_word` through `diagnostic.config`",
 			"The last column names what goes with the update: linked in a shared repository, attached in a private one.",
+			"Do not show a draft and wait: the person asked for the update (in a private repository, `references/private.md`'s single stop on a rewrite still applies).",
 		},
 		absent: []string{"This skill makes no docket write."}},
 	{sentinel: "change_0586_update_ticket_private", file: "skills/docket-update-ticket/references/private.md",

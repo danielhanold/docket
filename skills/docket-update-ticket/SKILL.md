@@ -97,5 +97,5 @@ A mention makes the ticket system notify a person. Mention only people the perso
 ## 6. Post and report
 
 - **Find the connector** for `ticket.provider`. Never conclude an operation is missing because it is not in your tool list: some connectors expose operations only through a discovery tool (the Atlassian connector's `discover`), so look there first.
-- **Post** the comment to `ticket.id`, making connector calls one at a time. Do not show a draft and wait: the person asked for the update. When they ask to see it first, show it and post on their go.
+- **Post** the comment to `ticket.id`, making connector calls one at a time. Do not show a draft and wait: the person asked for the update (in a private repository, `references/private.md`'s single stop on a rewrite still applies). When they ask to see it first, show it and post on their go.
 - **Report.** Report the update as posted only with the connector's confirmation, naming the ticket and anyone mentioned. For a missing connector, a failed post, or an uncertain outcome, say in one plain line what was not posted and why; an uncertain outcome is reported as uncertain, and the person decides whether to ask again. Never run a retry loop. A duplicate comment is deleted by hand.
