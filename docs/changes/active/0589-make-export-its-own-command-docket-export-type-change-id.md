@@ -14,7 +14,7 @@ related: [561, 578, 582]
 discovered_from: [581]
 adrs: []
 spec: 'docs/superpowers/specs/2026-11-10-make-export-its-own-command-docket-export-type-change-id-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-11-10-make-export-its-own-command-docket-export-type-change-id.md'
 results:
 auto_groomable:
 hold:
@@ -34,6 +34,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-11-10-make-export-its-own-command-docket-export-type-change-id-design.md](../../superpowers/specs/2026-11-10-make-export-its-own-command-docket-export-type-change-id-design.md) |
+| Plan | [2026-11-10-make-export-its-own-command-docket-export-type-change-id.md](../../superpowers/plans/2026-11-10-make-export-its-own-command-docket-export-type-change-id.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
