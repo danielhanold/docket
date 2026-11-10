@@ -233,31 +233,6 @@ func TestParseExportArgs(t *testing.T) {
 	}
 }
 
-// TestExportMatchesOpenExport (transitional, until open --export is removed):
-// the new command writes exactly what open --export wrote.
-func TestExportMatchesOpenExport(t *testing.T) {
-	body := "# Widget design\n\n<!-- docket:artifacts:start -->\nTalk about docket here, after change 0003.\n"
-	f := newOpenFixture(t, "", false, openWeb, exportCorpus()...)
-	f.writeBody(t, widgetSpec, body)
-	deps := f.exportDeps(testsupport.TempDir(t), "linux", "/nowhere")
-	dirA, dirB := testsupport.TempDir(t), testsupport.TempDir(t)
-	a := Open(context.Background(), deps, OpenOptions{RepoDir: f.repoDir, What: "spec", ID: 7, Export: true, Print: true, OutputPath: dirA})
-	b := Export(context.Background(), deps, ExportOptions{RepoDir: f.repoDir, What: "spec", ID: 7, Print: true, OutputPath: dirB})
-	if a.Result != ResultApplied || b.Result != ResultApplied {
-		t.Fatalf("open (%s, %q), export (%s, %q)", a.Result, a.Message, b.Result, b.Message)
-	}
-	if ga, gb := readExport(t, a.ExportedPath), readExport(t, b.ExportedPath); ga != gb {
-		t.Errorf("bytes differ:\nopen   %q\nexport %q", ga, gb)
-	}
-	if filepath.Base(a.ExportedPath) != filepath.Base(b.ExportedPath) || a.Replaced != b.Replaced ||
-		!reflect.DeepEqual(a.Leftovers, b.Leftovers) || !reflect.DeepEqual(a.Mentions, b.Mentions) || !reflect.DeepEqual(a.Notes, b.Notes) {
-		t.Errorf("open %+v\nexport %+v", a, b)
-	}
-	if len(b.Leftovers) == 0 || b.Mentions == nil || b.Mentions.Count == 0 {
-		t.Errorf("fixture produced no warnings: %+v %+v", b.Leftovers, b.Mentions)
-	}
-}
-
 // TestExportIgnoresGitHubRouting: a shared repository with a GitHub origin
 // and the default open.artifacts still exports the local metadata-checkout file.
 func TestExportIgnoresGitHubRouting(t *testing.T) {
@@ -512,67 +487,5 @@ func TestExportAmbiguousIDLeftAsWritten(t *testing.T) {
 	}
 	if got := readExport(t, res.ExportedPath); !strings.Contains(got, "Built after change 0003, see the notes.") {
 		t.Errorf("ambiguous id converted: %q", got)
-	}
-}
-
-func TestValidateOpenExport(t *testing.T) {
-	bad := []OpenOptions{
-		{What: "board", Export: true}, {What: "pr", ID: 7, Export: true},
-		{What: "spec", OutputPath: "x.md"}, {What: "spec", Warnings: WarningsAll},
-		{What: "spec", Export: true, Warnings: "bogus"},
-	}
-	for _, o := range bad {
-		if err := ValidateOpenExport(o); err == nil || strings.Contains(err.Error(), "\n") {
-			t.Errorf("ValidateOpenExport(%+v) = %v, want a one-line error", o, err)
-		}
-	}
-	good := []OpenOptions{
-		{What: "spec"}, {What: "board"}, {What: "pr", ID: 7},
-		{What: "spec", Export: true}, {What: "change", Export: true, OutputPath: "x", Warnings: WarningsLeftovers},
-		{What: "plan", Export: true, Warnings: WarningsMentions}, {What: "results", Export: true, Warnings: WarningsAll},
-	}
-	for _, o := range good {
-		if err := ValidateOpenExport(o); err != nil {
-			t.Errorf("ValidateOpenExport(%+v) = %v, want nil", o, err)
-		}
-	}
-	// Open refuses the same way, writing nothing and opening nothing.
-	f := newOpenFixture(t, "", false, openWeb, exportCorpus()...)
-	res := Open(context.Background(), f.deps(), OpenOptions{RepoDir: f.repoDir, What: "pr", ID: 7, Export: true})
-	if res.Result != ResultInvalidInput || res.Reason != ReasonOpenInvalidOption || len(f.opener.targets) != 0 || f.reader.pinCount != 0 {
-		t.Errorf("Open pr --export: (%s, %s, %q) opener %v", res.Result, res.Reason, res.Message, f.opener.targets)
-	}
-	res = Open(context.Background(), f.deps(), OpenOptions{RepoDir: f.repoDir, What: "spec", ID: 7, OutputPath: "x.md"})
-	if res.Result != ResultInvalidInput || res.Reason != ReasonOpenInvalidOption {
-		t.Errorf("Open spec --output-path without --export: (%s, %s, %q)", res.Result, res.Reason, res.Message)
-	}
-}
-
-func TestOpenResultExportJSON(t *testing.T) {
-	raw, _ := json.Marshal(OpenResult{What: "spec", Notes: []string{}, ExportedPath: "/d/x.md", Replaced: true,
-		Leftovers: []ExportLeftover{{SourceLine: 5, Text: "m", Rule: ExportRuleStrayMarker}, {Line: 2, Text: "t", Rule: "link"}},
-		Mentions:  &ExportMentions{Count: 1, Lines: []int{4}}})
-	var doc map[string]any
-	if err := json.Unmarshal(raw, &doc); err != nil {
-		t.Fatal(err)
-	}
-	want := map[string]any{
-		"exported_path": "/d/x.md", "replaced": true,
-		"leftovers": []any{
-			map[string]any{"source_line": float64(5), "text": "m", "rule": "stray-marker"},
-			map[string]any{"line": float64(2), "text": "t", "rule": "link"},
-		},
-		"mentions": map[string]any{"count": float64(1), "lines": []any{float64(4)}},
-	}
-	for k, w := range want {
-		if !reflect.DeepEqual(doc[k], w) {
-			t.Errorf("%s = %#v, want %#v (doc %s)", k, doc[k], w, raw)
-		}
-	}
-	plain, _ := json.Marshal(OpenResult{What: "spec", Notes: []string{}})
-	for k := range want {
-		if strings.Contains(string(plain), `"`+k+`"`) {
-			t.Errorf("non-export document carries %s: %s", k, plain)
-		}
 	}
 }

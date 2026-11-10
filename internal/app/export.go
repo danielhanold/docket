@@ -2,9 +2,7 @@ package app
 
 // export.go holds `docket export`: its argument grammar, its result document,
 // the destination rule, the atomic write of the clean copy, and the warnings
-// the self-check reports, filtered by --warnings. Until open loses its export,
-// it also holds the --export branch of `docket open`, which writes the copy
-// through the same writeCleanCopy.
+// the self-check reports, filtered by --warnings.
 
 import (
 	"context"
@@ -192,33 +190,6 @@ type ExportMentions struct {
 	Lines []int `json:"lines"`
 }
 
-// ValidateOpenExport is the one usage check of the export flags, shared by the
-// CLI and Open: --export takes no board or pr, --output-path and --warnings
-// need --export, and --warnings takes all, leftovers, or mentions.
-func ValidateOpenExport(o OpenOptions) error {
-	if !o.Export {
-		switch {
-		case o.OutputPath != "":
-			return errors.New("--output-path needs --export")
-		case o.Warnings != "":
-			return errors.New("--warnings needs --export")
-		}
-		return nil
-	}
-	if o.What == "board" || o.What == "pr" {
-		return fmt.Errorf("--export works on change, spec, plan, or results, not %s", o.What)
-	}
-	switch o.Warnings {
-	case "", WarningsAll, WarningsLeftovers, WarningsMentions:
-		return nil
-	}
-	return fmt.Errorf("invalid --warnings value %q — choose all, leftovers, or mentions", o.Warnings)
-}
-
-// HumanWarnings returns the warning lines a human renderer writes after the
-// notes.
-func (r OpenResult) HumanWarnings() []string { return exportWarningLines(r.Leftovers, r.Mentions) }
-
 // exportWarningLines renders an export's warnings: one line per leftover, then
 // one for the docket mentions when there are any.
 func exportWarningLines(leftovers []ExportLeftover, mentions *ExportMentions) []string {
@@ -320,21 +291,6 @@ func writeCleanCopy(ctx context.Context, deps OpenDeps, what, outputPath, warnin
 		cp.Mentions = &ExportMentions{Count: report.Mentions.Count, Lines: append([]int{}, report.Mentions.Lines...)}
 	}
 	return cp, nil
-}
-
-// openExport is the --export branch of `docket open`: it writes the clean copy
-// through writeCleanCopy, then opens or prints it.
-func openExport(ctx context.Context, deps OpenDeps, o OpenOptions, dir string, pin StatusPin, c domain.Change, snap domain.Snapshot, rel string, res OpenResult) OpenResult {
-	cp, f := writeCleanCopy(ctx, deps, o.What, o.OutputPath, o.Warnings, dir, pin, c, snap, rel)
-	res.Notes = append(res.Notes, cp.Notes...)
-	if f != nil {
-		res.Envelope = NewEnvelope(OperationOpen, f.result)
-		res.Reason, res.Message = f.reason, f.message
-		return res
-	}
-	res.ExportedPath, res.Replaced, res.Leftovers, res.Mentions = cp.Path, cp.Replaced, cp.Leftovers, cp.Mentions
-	res.Target, res.TargetKind = cp.Path, OpenTargetKindFile
-	return finishOpen(ctx, deps, o, res)
 }
 
 // exportTitles maps every change id exactly one record claims to its title; an
