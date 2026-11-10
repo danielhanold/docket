@@ -7,13 +7,13 @@ priority: 'medium'
 type: 'feat'
 deliverable: 'pr'
 created: '2026-11-09'
-updated: '2026-11-09'
+updated: '2026-11-10'
 depends_on: [582, 583]
 stacked_on:
-related: [581]
+related: [581, 578, 585]
 discovered_from: [581]
-adrs: []
-spec:
+adrs: [44, 161]
+spec: 'docs/superpowers/specs/2026-11-10-create-a-ticket-from-a-change-or-a-change-from-a-ticket-design.md'
 plan:
 results:
 auto_groomable:
@@ -28,6 +28,10 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-11-10-create-a-ticket-from-a-change-or-a-change-from-a-ticket-design.md](../../superpowers/specs/2026-11-10-create-a-ticket-from-a-change-or-a-change-from-a-ticket-design.md) |
+| ADRs | [ADR-0044](../../adrs/0044-autonomy-precedence-call-site-pre-specification.md), [ADR-0161](../../adrs/0161-ticket-fields-are-three-flat-stored-scalars-and-issue-is-ret.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -36,16 +40,21 @@ An engineer should be able to hand work to a ticket system as a clear request, o
 
 ## What changes
 
-`docket-link-ticket`, always attended: link an existing ticket by URL; create a ticket from a change after a readiness check and targeted refinement written back through `change.groom` (only while `proposed`), with a draft the human approves and the ticket type mapped from the change's type through the connector; import a ticket into a new proposed change with mapped type and ticket fields set. Records the fields only after the connector confirms. Fixed by the spec: the readiness criteria, never inventing scope, the type mapping rule, description written once. Left to grooming: reference file layout and trigger wording.
+A new inline skill, `docket-link-ticket`, always run with the person present, with three paths:
 
-**Acceptance criteria:** The skill's text covers each path and every refusal the spec names; repository tests check its structure; results list an Important live check against a sandbox project from another repository.
+- **Push (create):** turn a change into a ticket. A readiness check asks whether another engineer could own it as a user story; anything missing is asked about and written back to the change while it is still proposed, never invented. The draft — title, project, ticket type mapped from the change's type, the exported body, and the linked spec when there is one (a GitHub link in a shared repository, a cleaned attachment in a private one) — is shown once, and the ticket is created on the person's go. The link is recorded only after the ticket system confirms it.
+- **Link:** record an existing ticket on a change; replacing or removing a link only on request.
+- **Import:** turn a ticket into a new proposed change with its type mapped and the ticket fields set.
 
-**Covers (581 spec):** decision 4 (link, import, create, ticket type), decision 10's `docket-link-ticket` half
+One ticket may sit on several changes; the skill names the others and goes ahead. `status --json` gains each linked change's ticket (active and archived) so the skill can see existing links. `docket-export` stops claiming ticket work in its trigger description.
 
-**Likely touches:** new inline skill `docket-link-ticket` with a create reference (readiness check, refinement, draft) and an import reference; uses docket-export's ticket kind and change 583's operation; install/skill registration and generated surfaces
+## Acceptance criteria
 
-**Design source:** this change is position 3 of the ticket-integration split planned by change 581. The settled design lives in 581's spec, `docs/superpowers/specs/2026-11-09-split-the-ticket-integration-design-into-buildable-changes-design.md`, and its plan in `docs/results/2026-11-09-split-the-ticket-integration-design-into-buildable-changes-results.md` (the entry for position 3, *Coverage check*, *ADRs*, and *Trace notes*). Binding sections: Decisions 4 (Establishing the link: link, import, create) and 10 (Layering — the `docket-link-ticket` half), plus *Vocabulary*, *Editorial contract* (decision 11, for the ticket draft), *Out of scope*, and *What the code says today*. Grooming must read those sections and **restate the settled decisions this change carries in its own spec** — do not merely link to them — so the build needs nothing from change 581. Anything 581 marks as fixed is not reopened; only the points it leaves to grooming are decided here.
+- `status --json` reports a linked change's ticket for active and archived changes, and none for an unlinked or broken link.
+- The skill and its two references cover every path and refusal the spec names; repository tests guard its inline shape and key rules.
+- `docket-export` no longer triggers on a Jira ticket body or comment.
+- Results list an Important live check, from another repository against a sandbox ticket project, covering push (shared and private, with a spec), link, and import.
 
 ## Out of scope
 
-Updates (changes 585–588); automatic ticket creation at change creation (change 587); any ticket call from this repository.
+Posting ticket updates (changes 585–588); automatic ticket creation at change creation (change 587); rewriting a ticket's description after creation; any ticket-system call from this repository.
