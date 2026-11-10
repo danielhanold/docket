@@ -22,7 +22,7 @@ branch_prefix:
 branch: 'feat/post-a-ticket-update-on-request-shared-repositories'
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -51,3 +51,9 @@ It also fixes two leftovers from change 584: `docket-export`'s example that impl
 ## Out of scope
 
 Private repositories (change 586); automatic posting (change 587); following a team's own ticket skill (change 591); native ticket web links; attachments.
+
+## Reconcile log
+
+### 2026-11-10
+
+Unchanged against main 6dacf9706: the spec was verified at this tip; dependency #583 and related #584 are done, and #586/#587/#591 remain proposed and out of scope.
