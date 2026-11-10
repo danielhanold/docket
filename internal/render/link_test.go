@@ -79,3 +79,29 @@ func TestBlobURLOnBranchWithoutRepoWebURL(t *testing.T) {
 		t.Fatalf("BlobURLOnBranch with empty RepoWebURL = %q, want empty", got)
 	}
 }
+
+func TestBlobURLAtCommit(t *testing.T) {
+	const commit = "3333333333333333333333333333333333333333"
+	const p = "docs/superpowers/specs/2026-11-08-x-design.md"
+	shared := render.LinkContext{RepoWebURL: "https://github.com/o/r", MetadataBranch: "docket", IntegrationBranch: "main"}
+	noWeb := shared
+	noWeb.RepoWebURL = ""
+	private := shared
+	private.PrivateMetadata = true
+	cases := []struct {
+		name   string
+		ctx    render.LinkContext
+		commit string
+		want   string
+	}{
+		{"shared full commit", shared, commit, "https://github.com/o/r/blob/" + commit + "/" + p},
+		{"no repo web URL", noWeb, commit, ""},
+		{"empty commit", shared, "", ""},
+		{"private metadata", private, commit, ""},
+	}
+	for _, c := range cases {
+		if got := c.ctx.BlobURLAtCommit(p, c.commit); got != c.want {
+			t.Errorf("%s: BlobURLAtCommit = %q, want %q", c.name, got, c.want)
+		}
+	}
+}
