@@ -1,6 +1,6 @@
 # Backlog
 
-**589 changes** — 🟢 1 in progress · 🟡 7 proposed · ⚪ 15 deferred · ✅ 421 done · 🗑️ 145 killed
+**590 changes** — 🟢 1 in progress · 🟡 8 proposed · ⚪ 15 deferred · ✅ 421 done · 🗑️ 145 killed
 
 ## 🟢 In progress (1)
 
@@ -8,10 +8,11 @@
 |---|-------|----------|------|------|--------|-------|
 | [0584](active/0584-create-a-ticket-from-a-change-or-a-change-from-a-ticket.md) | Create a ticket from a change, or a change from a ticket | `medium` | `feat` | [spec](../superpowers/specs/2026-11-10-create-a-ticket-from-a-change-or-a-change-from-a-ticket-design.md) | `feat/create-a-ticket-from-a-change-or-a-change-from-a-ticket` | building |
 
-## 🟡 Proposed (7)
+## 🟡 Proposed (8)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0590](active/0590-have-reviewers-check-a-build-against-its-acceptance-criteria.md) | Have reviewers check a build against its acceptance criteria when the change has them | `medium` | `feat` | needs-grooming |
 | [0589](active/0589-make-export-its-own-command-docket-export-type-change-id.md) | Make export its own command: docket export <type> <change_id> | `medium` | `refactor` | needs-grooming |
 | [0588](active/0588-update-tickets-automatically-in-a-private-repository.md) | Update tickets automatically in a private repository | `medium` | `feat` | ⏳ waiting on #586 — not yet built |
 | [0587](active/0587-update-tickets-automatically-after-each-event.md) | Update tickets automatically after each event | `medium` | `feat` | ⏳ waiting on #584 — not yet built |
@@ -68,6 +69,7 @@ graph TD
   0586 --> 0588
   0587 --> 0588
   0589
+  0590
   0192:::done
   0544:::done
   0582:::done
