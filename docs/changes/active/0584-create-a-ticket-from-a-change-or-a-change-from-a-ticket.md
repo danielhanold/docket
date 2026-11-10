@@ -2,7 +2,7 @@
 id: 584
 slug: 'create-a-ticket-from-a-change-or-a-change-from-a-ticket'
 title: 'Create a ticket from a change, or a change from a ticket'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'feat'
 deliverable: 'pr'
@@ -19,7 +19,7 @@ results:
 auto_groomable:
 hold:
 branch_prefix:
-branch:
+branch: 'feat/create-a-ticket-from-a-change-or-a-change-from-a-ticket'
 pr:
 blocked_by:
 reconciled: false

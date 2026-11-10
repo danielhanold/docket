@@ -1,12 +1,12 @@
 # Backlog
 
-**588 changes** — 🟣 1 groomed · 🟡 6 proposed · ⚪ 15 deferred · ✅ 421 done · 🗑️ 145 killed
+**588 changes** — 🟢 1 in progress · 🟡 6 proposed · ⚪ 15 deferred · ✅ 421 done · 🗑️ 145 killed
 
-## 🟣 Groomed (1)
+## 🟢 In progress (1)
 
-| # | Title | Priority | Type | Spec | Readiness |
-|---|-------|----------|------|------|-----------|
-| [0584](active/0584-create-a-ticket-from-a-change-or-a-change-from-a-ticket.md) | Create a ticket from a change, or a change from a ticket | `medium` | `feat` | [spec](../superpowers/specs/2026-11-10-create-a-ticket-from-a-change-or-a-change-from-a-ticket-design.md) | build-ready |
+| # | Title | Priority | Type | Spec | Branch | State |
+|---|-------|----------|------|------|--------|-------|
+| [0584](active/0584-create-a-ticket-from-a-change-or-a-change-from-a-ticket.md) | Create a ticket from a change, or a change from a ticket | `medium` | `feat` | [spec](../superpowers/specs/2026-11-10-create-a-ticket-from-a-change-or-a-change-from-a-ticket-design.md) | `feat/create-a-ticket-from-a-change-or-a-change-from-a-ticket` | building |
 
 ## 🟡 Proposed (6)
 
