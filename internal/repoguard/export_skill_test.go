@@ -128,4 +128,13 @@ func TestLinkTicketSkillIsInline(t *testing.T) {
 			t.Errorf("%s description uses %q; the item is a ticket: %q", name, word, desc)
 		}
 	}
+	// SKILL.md routes the push and import paths to these files; a missing one
+	// leaves a blocking read with nothing to read.
+	root := guardRoot(t)
+	for _, ref := range []string{"references/create.md", "references/import.md"} {
+		p := filepath.Join(root, "skills", name, filepath.FromSlash(ref))
+		if _, err := os.Stat(p); err != nil {
+			t.Errorf("%s routes to %s, which cannot be read: %v", name, ref, err)
+		}
+	}
 }
