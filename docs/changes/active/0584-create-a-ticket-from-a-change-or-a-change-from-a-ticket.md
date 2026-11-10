@@ -2,7 +2,7 @@
 id: 584
 slug: 'create-a-ticket-from-a-change-or-a-change-from-a-ticket'
 title: 'Create a ticket from a change, or a change from a ticket'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'feat'
 deliverable: 'pr'
@@ -20,7 +20,7 @@ auto_groomable:
 hold:
 branch_prefix:
 branch: 'feat/create-a-ticket-from-a-change-or-a-change-from-a-ticket'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/451'
 blocked_by:
 reconciled: true
 ---
@@ -66,3 +66,12 @@ Posting ticket updates (changes 585–588); automatic ticket creation at change 
 ### 2026-11-10
 
 Unchanged against main c824883b6: 582 and 583 are done; ContextTicket (internal/app/implementation_context.go) and change.link-ticket exist as the spec assumes; StatusRecord has no ticket yet; docket-export still claims ticket work; no docket-link-ticket skill exists.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: 270b38e32a74ccafa85b9ed951a15b83a6f3cb9a
+ran_at:   2026-11-10T02:41:31Z
+<!-- docket:build-evidence:end -->

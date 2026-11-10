@@ -1,12 +1,12 @@
 # Backlog
 
-**590 changes** — 🟢 1 in progress · 🟡 8 proposed · ⚪ 15 deferred · ✅ 421 done · 🗑️ 145 killed
+**590 changes** — 🔵 1 built · 🟡 8 proposed · ⚪ 15 deferred · ✅ 421 done · 🗑️ 145 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | State |
-|---|-------|----------|------|------|--------|-------|
-| [0584](active/0584-create-a-ticket-from-a-change-or-a-change-from-a-ticket.md) | Create a ticket from a change, or a change from a ticket | `medium` | `feat` | [spec](../superpowers/specs/2026-11-10-create-a-ticket-from-a-change-or-a-change-from-a-ticket-design.md) | `feat/create-a-ticket-from-a-change-or-a-change-from-a-ticket` | building |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0584](active/0584-create-a-ticket-from-a-change-or-a-change-from-a-ticket.md) | Create a ticket from a change, or a change from a ticket | `medium` | `feat` | [#451](https://github.com/danielhanold/docket/pull/451) | awaiting merge |
 
 ## 🟡 Proposed (8)
 
@@ -15,7 +15,7 @@
 | [0590](active/0590-have-reviewers-check-a-build-against-its-acceptance-criteria.md) | Have reviewers check a build against its acceptance criteria when the change has them | `medium` | `feat` | needs-grooming |
 | [0589](active/0589-make-export-its-own-command-docket-export-type-change-id.md) | Make export its own command: docket export <type> <change_id> | `medium` | `refactor` | needs-grooming |
 | [0588](active/0588-update-tickets-automatically-in-a-private-repository.md) | Update tickets automatically in a private repository | `medium` | `feat` | ⏳ waiting on #586 — not yet built |
-| [0587](active/0587-update-tickets-automatically-after-each-event.md) | Update tickets automatically after each event | `medium` | `feat` | ⏳ waiting on #584 — not yet built |
+| [0587](active/0587-update-tickets-automatically-after-each-event.md) | Update tickets automatically after each event | `medium` | `feat` | ⏳ waiting on #584 — needs your merge |
 | [0586](active/0586-post-a-ticket-update-on-request-in-a-private-repository.md) | Post a ticket update on request in a private repository | `medium` | `feat` | ⏳ waiting on #585 — not yet built |
 | [0585](active/0585-post-a-ticket-update-on-request-shared-repositories.md) | Post a ticket update on request (shared repositories) | `medium` | `feat` | needs-grooming |
 | [0576](active/0576-run-the-brainstorm-builder-check-on-a-pinned-cheaper-model-a.md) | Run the brainstorm builder check on a pinned, cheaper model and effort | `high` | `feat` | needs-grooming |
