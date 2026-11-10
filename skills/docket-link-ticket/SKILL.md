@@ -33,7 +33,7 @@ When creating a ticket from a change, **read `references/create.md` now (blockin
 ## Link path
 
 1. The person names a change and a ticket: a URL, or an id when `tickets.site` is set.
-2. **Provider and id.** When the URL's host matches `tickets.site`, the provider is `tickets.provider`; otherwise ask the person. The id is the ticket's key as the provider shows it, read through the connector (preferred) or from the URL.
+2. **Provider and id.** When the URL's host matches `tickets.site`, the provider is `tickets.provider`; otherwise ask the person. The id is the ticket's key as the provider shows it, read through the connector (preferred) or from the URL. Given only an id, the provider is `tickets.provider` and the URL comes from the connector's read of the ticket; with no connector, ask the person for the URL.
 3. **Check the ticket.** Confirm the ticket exists through the connector when one is available. With none, the person may still link by URL — the link is a record, not a ticket call — and the report says the ticket was not verified.
 4. **Other changes.** Name any other change that already carries this ticket (shared rules).
 5. **Record it.** Run the `change.link-ticket` operation with the change's `path` and `revision`. On `already-linked-elsewhere`, tell the person which ticket the change carries now, and send `replace: true` only if they say so. Unlink only when the person asks. Report the disposition in plain words: `linked` (now linked), `already-linked` (it already carried this ticket), `replaced` (the old link was swapped for the new one), `unlinked` (the link was removed), or `nothing-to-unlink` (it had no link to remove).
