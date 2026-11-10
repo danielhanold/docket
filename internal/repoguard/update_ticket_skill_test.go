@@ -3,6 +3,7 @@ package repoguard
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -29,5 +30,28 @@ func TestUpdateTicketSkillIsInline(t *testing.T) {
 	p := filepath.Join(guardRoot(t), "skills", name, "references", "shared.md")
 	if _, err := os.Stat(p); err != nil {
 		t.Errorf("%s routes to references/shared.md, which cannot be read: %v", name, err)
+	}
+}
+
+// typedMention matches an at-sign directly before a name: the plain-text
+// stand-in for a mention, which notifies nobody.
+var typedMention = regexp.MustCompile(`@\p{L}`)
+
+// TestUpdateTicketSkillExamplesUseNoTypedMention keeps the skill's example
+// comments from teaching the typed mention its Mentions rule forbids: no bold
+// at-mention anywhere, and no at-sign before a name on any example
+// (blockquote) line.
+func TestUpdateTicketSkillExamplesUseNoTypedMention(t *testing.T) {
+	body := readRepoFile(t, "skills/docket-update-ticket/SKILL.md")
+	if strings.Contains(body, "**@") {
+		t.Errorf("skills/docket-update-ticket/SKILL.md contains a bold at-mention (`**@`); an example mention must be a placeholder for the connector's real mention")
+	}
+	for i, line := range strings.Split(body, "\n") {
+		if !strings.HasPrefix(strings.TrimSpace(line), ">") {
+			continue
+		}
+		if typedMention.MatchString(line) {
+			t.Errorf("skills/docket-update-ticket/SKILL.md example line %d types a mention as plain text: %q", i+1, line)
+		}
 	}
 }

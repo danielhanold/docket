@@ -48,9 +48,9 @@ A late update never misstates the current state: compare the event with the curr
 
 **Editorial standard.** Updates are for people: a few short sentences or bullets, scaled to how much the update matters. Include, when relevant, what happened; what matters (key outcomes, consequential decisions, limitations); what is needed next from the reader (an action, test, review, or decision); and the links. Leave out how you worked, brainstorming notes and work logs, file lists, test inventories, command output, repeated background, filler, empty headings, and pasted artifact contents. Keep every material blocker, risk, and required action, however short the update. Say only what the change and its evidence support: a merge is not a deployment or an acceptance.
 
-**Layout.** Write for a person reading the comment in the ticket system. Lay it out so it scans: short paragraphs, a list, or a single line, whichever reads best for this update. Use the format the connector accepts, so the layout survives posting. Label links (`Spec:`, `Results:`). The examples show tone, length, and layout:
+**Layout.** Write for a person reading the comment in the ticket system. Lay it out so it scans: short paragraphs, a list, or a single line, whichever reads best for this update. Use the format the connector accepts, so the layout survives posting. Label links (`Spec:`, `Results:`). The examples show tone, length, and layout; `<mention: Jane Doe>` stands for the ticket system's real mention, never typed text:
 
-> **@Jane Doe** — PR ready for review: https://github.com/acme/api/pull/48
+> <mention: Jane Doe> — PR ready for review: https://github.com/acme/api/pull/48
 >
 > Invalid requests now fail with a clear error before any work starts, instead of failing partway through. The API contract is unchanged, so existing clients need no update.
 >
