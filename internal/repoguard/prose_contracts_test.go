@@ -1554,7 +1554,7 @@ var alignmentContracts = []proseContract{
 			"the export never reports them, so search the whole copy on every private export",
 		}},
 	{sentinel: "change_0578_export_skill", file: "skills/docket-convention/SKILL.md",
-		present: []string{"(`docket-new-change`, `docket-groom-next`) and `docket-export` stay inline"}},
+		present: []string{"(`docket-new-change`, `docket-groom-next`), `docket-export`, and `docket-link-ticket` stay inline"}},
 	{sentinel: "change_0578_export_skill", file: "docs/reference/cli.md",
 		present: []string{"Agent sessions reach the export through the `docket-export` skill."}},
 	{sentinel: "change_0578_export_skill", file: "docs/reference/skills-and-agents.md",
@@ -1617,6 +1617,14 @@ var alignmentContracts = []proseContract{
 			"When the draft has open questions, follow with one `change.groom` `outcome: revise` carrying `## Open questions`, using a fresh `path` and `revision` from the `status` operation.",
 			"The import happens once: nothing is synced from the ticket afterwards.",
 		}},
+	// change 0584 — docket-link-ticket joins the inline skills in the agent
+	// layer and the reference docs.
+	{sentinel: "change_0584_link_ticket_skill", file: "skills/docket-convention/references/agent-layer.md",
+		present: []string{"the two interactive skills, `docket-export`, and `docket-link-ticket` stay inline"}},
+	{sentinel: "change_0584_link_ticket_skill", file: "docs/reference/skills-and-agents.md",
+		present: []string{"- **docket-link-ticket** —"}},
+	{sentinel: "change_0584_link_ticket_skill", file: "docs/reference/glossary.md",
+		present: []string{"### docket-link-ticket", "- [docket-link-ticket](#docket-link-ticket)"}},
 }
 
 // oneLayoutAbsent are the retired metadata-layout spellings.

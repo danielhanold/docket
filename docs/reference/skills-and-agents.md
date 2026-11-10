@@ -18,10 +18,11 @@ Each line names one skill directory under `skills/` and its job.
 - **docket-build** — the build role: route each plan task to a tier worker and run one full-suite gate at the end.
 - **docket-build-task** — the per-task worker contract: one plan task from focused test through one commit.
 - **docket-convention** — the shared contract: config, layout, manifest and ADR format, lifecycle, branch model (pure reference).
-- **docket-export** — export a change, spec, plan, or results file through docket's own export, or put one into another tool; in a private repository it also rewrites docket references out and shows you before posting.
+- **docket-export** — export a change, spec, plan, or results file through docket's own export, or put one into a document, message, or email; in a private repository it also rewrites docket references out and shows you before posting.
 - **docket-finalize-change** — close a change out: merge if approved, verify, archive, clean up, refresh the board.
 - **docket-groom-next** — groom the next needs-grooming change to build-ready through an interactive brainstorm.
 - **docket-implement-next** — implement the next build-ready change end to end to an open PR with no human interaction.
+- **docket-link-ticket** — link a change to a ticket in your team's ticket system, create a ticket from a change, or make a change from a ticket; always with you present.
 - **docket-new-change** — capture a new unit of planned work into the backlog through up-front design.
 - **docket-review** — the bounded read-only whole-branch reviewer role.
 - **docket-status** — refresh the backlog, sweep merged changes to done, and run health checks.

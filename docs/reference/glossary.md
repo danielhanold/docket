@@ -1757,7 +1757,7 @@ docket. It runs the `open` operation's export (`--export --print --json`) and pa
 to a file or another tool, never the raw file. In a private repository it also rewrites what the
 export leaves that names docket, checks the result, and shows you before → after before posting.
 
-**Used for:** putting a spec or other artifact into a ticket, document, or message from an agent
+**Used for:** putting a spec or other artifact into a document or message from an agent
 session. It runs inline, because it posts with your session's own tools and may ask you first.
 
 ### docket-finalize-change
@@ -1788,6 +1788,15 @@ stub rather than groom it, routes to `revise`. It runs inline at the session mod
 /docket-groom-next
 /docket-groom-next 412
 ```
+
+### docket-link-ticket
+
+The skill an agent session uses for ticket work. It links a change to an existing ticket, creates a
+ticket from a change, or makes a change from a ticket, working through your session's own
+connector tools for the ticket system. It records a link only after the connector confirms.
+
+**Used for:** handing a change to a ticket system or pulling a ticket in. It runs inline, because it
+needs you present and posts through your session's connector.
 
 ### docket-new-change
 
@@ -1838,8 +1847,8 @@ Only skills that never need the human mid-run are forked, because a forked subag
 back to the human. The forked skills are `docket-status`, `docket-adr`, `docket-implement-next`, and
 `docket-auto-groom` (`context: fork` + `agent:` frontmatter).
 
-**Used for:** explaining why `docket-new-change`, `docket-groom-next`, `docket-export`, and
-`docket-finalize-change` run inline. A headless finalize is authorized by naming ids instead.
+**Used for:** explaining why `docket-new-change`, `docket-groom-next`, `docket-export`,
+`docket-link-ticket`, and `docket-finalize-change` run inline. A headless finalize is authorized by naming ids instead.
 
 ### Harness
 
@@ -1863,8 +1872,8 @@ every harness. It is program data, not user config, and each harness block is co
 abort-and-report rule: implement-next, auto-groom, finalize-change, status, adr, build-task, and
 review. **Interactive** skills (`docket-new-change`, `docket-groom-next`) stay inline at the session
 model, because the conversation with you is the point. They only advise a model at startup.
-`docket-export` also stays inline, because it posts with your session's own tools and may ask you
-first.
+`docket-export` and `docket-link-ticket` also stay inline, because they post with your session's own
+tools and work with you before posting.
 
 **Used for:** knowing which skills you can dispatch and walk away from, and which need you at the
 keyboard.
@@ -2372,6 +2381,7 @@ docket development install --source ~/dev/docket
 - [docket-export](#docket-export)
 - [docket-finalize-change](#docket-finalize-change)
 - [docket-groom-next](#docket-groom-next)
+- [docket-link-ticket](#docket-link-ticket)
 - [docket-new-change](#docket-new-change)
 - [docket-review](#docket-review)
 - [docket-status](#docket-status)
