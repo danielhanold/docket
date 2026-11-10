@@ -226,6 +226,7 @@ func TestStatusRecordsCarryTicket(t *testing.T) {
 			changeBlob(2, "plain", "feat", "high", ""),
 			changeBlob(3, "partial", "feat", "high", "ticket_provider: jira\nticket_id: CLOUD-123\n"),
 			changeBlob(4, "badurl", "feat", "high", "ticket_provider: jira\nticket_id: CLOUD-123\nticket_url: 'javascript:x'\n"),
+			changeBlob(6, "activefix", "fix", "high", "ticket_provider: jira\nticket_id: CLOUD-600\nticket_url: 'https://tickets.example.com/browse/CLOUD-600'\n"),
 			archived,
 			adrBlob(71, "an-adr"),
 		},
@@ -244,6 +245,7 @@ func TestStatusRecordsCarryTicket(t *testing.T) {
 		"change/0003": nil,
 		"change/0004": nil,
 		"change/0005": {Provider: "jira", ID: "CLOUD-500", URL: "https://tickets.example.com/browse/CLOUD-500"},
+		"change/0006": {Provider: "jira", ID: "CLOUD-600", URL: "https://tickets.example.com/browse/CLOUD-600"},
 		"adr/0071":    nil,
 	}
 	seen := map[string]bool{}
@@ -268,6 +270,9 @@ func TestStatusRecordsCarryTicket(t *testing.T) {
 		if c.ID == 5 {
 			t.Errorf("archived fix change 5 appears in changes: %+v", c)
 		}
+		if c.ID == 6 {
+			t.Errorf("type-filtered active fix change 6 appears in changes: %+v", c)
+		}
 	}
 
 	b, err := json.Marshal(res)
@@ -284,7 +289,7 @@ func TestStatusRecordsCarryTicket(t *testing.T) {
 	for _, r := range doc.Records {
 		_, has := r["ticket"]
 		id, _ := r["identity"].(string)
-		wantKey := r["kind"] == "change" && (id == "0001" || id == "0005")
+		wantKey := r["kind"] == "change" && (id == "0001" || id == "0005" || id == "0006")
 		if has != wantKey {
 			t.Errorf("record %v/%s: ticket key present = %v, want %v (%v)", r["kind"], id, has, wantKey, r["ticket"])
 		}
