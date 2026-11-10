@@ -50,39 +50,48 @@ func frontmatterValue(content, key string) string {
 	return ""
 }
 
-// TestExportSkillIsInline pins docket-export as an inline skill: frontmatter
-// carries exactly name and description (no fork, no agent), and no agent
-// wrapper exists. A forked skill could not reach the session's posting tools
-// or ask the person.
-func TestExportSkillIsInline(t *testing.T) {
+// assertInlineSkill pins skills/<name>/SKILL.md as an inline skill:
+// frontmatter carries exactly name and description (no fork, no agent), the
+// name matches, the collapsed description contains each clause, and no agent
+// wrapper agents/<name>.md exists. A forked skill could not reach the
+// session's own tools or ask the person.
+func assertInlineSkill(t *testing.T, name string, clauses []string) {
+	t.Helper()
 	root := guardRoot(t)
-	body := readRepoFile(t, "skills/docket-export/SKILL.md")
+	file := "skills/" + name + "/SKILL.md"
+	body := readRepoFile(t, file)
 	keys, err := skillFrontmatterKeys(body)
 	if err != nil {
-		t.Fatalf("skills/docket-export/SKILL.md frontmatter: %v", err)
+		t.Fatalf("%s frontmatter: %v", file, err)
 	}
 	if want := []string{"name", "description"}; !reflect.DeepEqual(keys, want) {
-		t.Errorf("frontmatter keys = %v, want exactly %v (an inline skill: no context, no agent)", keys, want)
+		t.Errorf("%s frontmatter keys = %v, want exactly %v (an inline skill: no context, no agent)", file, keys, want)
 	}
-	if got := frontmatterValue(body, "name"); got != "docket-export" {
-		t.Errorf("name = %q, want docket-export", got)
+	if got := frontmatterValue(body, "name"); got != name {
+		t.Errorf("%s name = %q, want %s", file, got, name)
 	}
 	desc := collapseWS(frontmatterValue(body, "description"))
-	for _, clause := range []string{
-		"export a docket change, spec, plan, or results file",
-		"put one into anything outside docket",
-	} {
+	for _, clause := range clauses {
 		if !strings.Contains(desc, clause) {
-			t.Errorf("description lacks %q: %q", clause, desc)
+			t.Errorf("%s description lacks %q: %q", file, clause, desc)
 		}
 	}
-	_, err = os.Stat(filepath.Join(root, "agents", "docket-export.md"))
+	wrapper := filepath.Join(root, "agents", name+".md")
+	_, err = os.Stat(wrapper)
 	switch {
 	case err == nil:
-		t.Errorf("agents/docket-export.md exists; docket-export is an inline skill with no wrapper")
+		t.Errorf("agents/%s.md exists; %s is an inline skill with no wrapper", name, name)
 	case !errors.Is(err, fs.ErrNotExist):
-		t.Errorf("stat agents/docket-export.md: %v (fail closed)", err)
+		t.Errorf("stat agents/%s.md: %v (fail closed)", name, err)
 	}
+}
+
+// TestExportSkillIsInline pins docket-export as an inline skill.
+func TestExportSkillIsInline(t *testing.T) {
+	assertInlineSkill(t, "docket-export", []string{
+		"export a docket change, spec, plan, or results file",
+		"put one into anything outside docket",
+	})
 
 	t.Run("non_vacuity", func(t *testing.T) {
 		got, err := skillFrontmatterKeys("---\nname: x\ndescription: y\ncontext: fork\nagent: x\n---\nbody\n")
@@ -99,4 +108,24 @@ func TestExportSkillIsInline(t *testing.T) {
 			t.Errorf("no closing fence was accepted")
 		}
 	})
+}
+
+// TestLinkTicketSkillIsInline pins docket-link-ticket as an inline skill whose
+// description names its three asks, disclaims posting updates, and uses the
+// ticket vocabulary only.
+func TestLinkTicketSkillIsInline(t *testing.T) {
+	const name = "docket-link-ticket"
+	assertInlineSkill(t, name, []string{
+		"link a change in docket to a ticket",
+		"create a ticket from a change",
+		"make a change from a ticket",
+		"not for posting an update",
+	})
+	body := readRepoFile(t, "skills/"+name+"/SKILL.md")
+	desc := strings.ToLower(collapseWS(frontmatterValue(body, "description")))
+	for _, word := range []string{"issue", "work item"} {
+		if strings.Contains(desc, word) {
+			t.Errorf("%s description uses %q; the item is a ticket: %q", name, word, desc)
+		}
+	}
 }

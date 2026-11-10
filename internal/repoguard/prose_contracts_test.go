@@ -1558,6 +1558,30 @@ var alignmentContracts = []proseContract{
 		present: []string{"Agent sessions reach the export through the `docket-export` skill."}},
 	{sentinel: "change_0578_export_skill", file: "docs/reference/skills-and-agents.md",
 		present: []string{"- **docket-export** —"}},
+	// change 0584 — the inline ticket-linking skill: attended only; links are
+	// read from status --json --records; a broken link stops every write; record
+	// only after the connector confirms; push and import load their references.
+	{sentinel: "change_0584_link_ticket_skill", file: "skills/docket-link-ticket/SKILL.md",
+		present: []string{
+			"This skill runs inline, in your own session, and only when the person asks: no autonomous workflow ever creates, links, or imports a ticket.",
+			"A `contended` refusal means re-sync, re-read `path` and `revision`, and retry, or stop if the change moved out from under the request.",
+			"Read `tickets.provider`, `tickets.site`, and `tickets.project` from the `diagnostic.config` operation at `effective.tickets.<key>.value`.",
+			"Never conclude an operation is missing because it is not in your tool list",
+			"With no connector, creating and importing stop with nothing created or recorded.",
+			"Known links come from the `records` array of the `status` operation run with `--json --records`",
+			"A change is linked only when its record carries a `ticket` object.",
+			"A change with a `ticket-link-invalid` finding is not linked, but `change.link-ticket` will not write over it without `replace: true`: before anything else, stop and ask the person to fix the broken link or remove it.",
+			"One ticket may be on several changes.",
+			"Record only after the connector confirms.",
+			"An uncertain outcome is reported as uncertain, and the person decides whether to try again.",
+			"When creating a ticket from a change, **read `references/create.md` now (blocking)**.",
+			"When making a change from a ticket, **read `references/import.md` now (blocking)**.",
+			"When the URL's host matches `tickets.site`, the provider is `tickets.provider`; otherwise ask the person.",
+			"the report says the ticket was not verified",
+			"On `already-linked-elsewhere`, tell the person which ticket the change carries now, and send `replace: true` only if they say so.",
+			"Unlink only when the person asks.",
+		},
+		absent: []string{"context: fork", "agent: docket-link-ticket"}},
 }
 
 // oneLayoutAbsent are the retired metadata-layout spellings.
