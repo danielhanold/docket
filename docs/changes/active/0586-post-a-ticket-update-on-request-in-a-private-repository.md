@@ -22,7 +22,7 @@ branch_prefix:
 branch: 'feat/post-a-ticket-update-on-request-in-a-private-repository'
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -52,3 +52,9 @@ No binary change: `context.ticket` and `docket-export` already provide what this
 ## Out of scope
 
 Unattended private posting, the final leak-pattern check, and unknown visibility treated as private (change 588); automatic posting (change 587); any change to `context.ticket`, `docket-export`, or the leak patterns; deleting attachments from a ticket, retrying, or recording what was posted.
+
+## Reconcile log
+
+### 2026-11-10
+
+Unchanged against `main` 3243fa5f2. Change 585 is done and its follow-up fixes (pinned reads, killed reason, mention placeholder) do not touch the private route; the `visibility` refusal in SKILL.md section 2 and the 0585 sentinel are still as the spec describes.
