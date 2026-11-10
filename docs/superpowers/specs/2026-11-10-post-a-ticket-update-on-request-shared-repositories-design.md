@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0585 — Post a ticket update on request (shared repositories)](../../changes/active/0585-post-a-ticket-update-on-request-shared-repositories.md)**
+> ↩ **[Change 0585 — Post a ticket update on request (shared repositories)](../../changes/archive/2026-11-10-0585-post-a-ticket-update-on-request-shared-repositories.md)**
 <!-- docket:backlink:end -->
 
 # Post a ticket update on request (shared repositories): design

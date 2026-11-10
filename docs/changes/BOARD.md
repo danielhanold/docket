@@ -1,23 +1,17 @@
 # Backlog
 
-**591 changes** — 🔵 1 built · 🟡 8 proposed · ⚪ 15 deferred · ✅ 422 done · 🗑️ 145 killed
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0585](active/0585-post-a-ticket-update-on-request-shared-repositories.md) | Post a ticket update on request (shared repositories) | `medium` | `feat` | [#452](https://github.com/danielhanold/docket/pull/452) | awaiting merge |
+**591 changes** — 🟡 8 proposed · ⚪ 15 deferred · ✅ 423 done · 🗑️ 145 killed
 
 ## 🟡 Proposed (8)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
-| [0591](active/0591-follow-the-team-s-own-ticket-skill-for-project-specific-tick.md) | Follow the team's own ticket skill for project-specific ticket details | `medium` | `feat` | ⏳ waiting on #585 — needs your merge |
+| [0591](active/0591-follow-the-team-s-own-ticket-skill-for-project-specific-tick.md) | Follow the team's own ticket skill for project-specific ticket details | `medium` | `feat` | needs-grooming |
 | [0590](active/0590-have-reviewers-check-a-build-against-its-acceptance-criteria.md) | Have reviewers check a build against its acceptance criteria when the change has them | `medium` | `feat` | needs-grooming |
 | [0589](active/0589-make-export-its-own-command-docket-export-type-change-id.md) | Make export its own command: docket export <type> <change_id> | `medium` | `refactor` | needs-grooming |
 | [0588](active/0588-update-tickets-automatically-in-a-private-repository.md) | Update tickets automatically in a private repository | `medium` | `feat` | ⏳ waiting on #586 — not yet built |
-| [0587](active/0587-update-tickets-automatically-after-each-event.md) | Update tickets automatically after each event | `medium` | `feat` | ⏳ waiting on #585 — needs your merge |
-| [0586](active/0586-post-a-ticket-update-on-request-in-a-private-repository.md) | Post a ticket update on request in a private repository | `medium` | `feat` | ⏳ waiting on #585 — needs your merge |
+| [0587](active/0587-update-tickets-automatically-after-each-event.md) | Update tickets automatically after each event | `medium` | `feat` | needs-grooming |
+| [0586](active/0586-post-a-ticket-update-on-request-in-a-private-repository.md) | Post a ticket update on request in a private repository | `medium` | `feat` | needs-grooming |
 | [0576](active/0576-run-the-brainstorm-builder-check-on-a-pinned-cheaper-model-a.md) | Run the brainstorm builder check on a pinned, cheaper model and effort | `high` | `feat` | needs-grooming |
 | [0572](active/0572-let-a-finalize-loop-carry-on-past-a-blocked-change.md) | Let a finalize loop carry on past a blocked change | `medium` | `feat` | needs-grooming |
 
@@ -60,7 +54,6 @@ graph TD
   0566
   0572
   0576
-  0583 --> 0585
   0585 --> 0586
   0584 --> 0587
   0585 --> 0587
@@ -71,15 +64,16 @@ graph TD
   0585 --> 0591
   0192:::done
   0544:::done
-  0583:::done
   0584:::done
+  0585:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (567)</summary>
+<details><summary>✅🗑️ Archive — done + killed (568)</summary>
 
 | # | Title | Closed |
 |---|-------|--------|
+| [0585](archive/2026-11-10-0585-post-a-ticket-update-on-request-shared-repositories.md) | Post a ticket update on request (shared repositories) | 2026-11-10 |
 | [0584](archive/2026-11-10-0584-create-a-ticket-from-a-change-or-a-change-from-a-ticket.md) | Create a ticket from a change, or a change from a ticket | 2026-11-10 |
 | [0583](archive/2026-11-10-0583-link-a-change-to-a-ticket.md) | Link a change to a ticket | 2026-11-10 |
 | [0582](archive/2026-11-09-0582-add-acceptance-criteria-to-changes-and-rename-export-s-issue.md) | Add acceptance criteria to changes and rename export's issue kind to ticket | 2026-11-09 |
@@ -95,7 +89,6 @@ graph TD
 | [0574](archive/2026-10-20-0574-stop-repository-prepare-re-walking-all-of-main-s-history-to.md) | Recognize the docket branch by its shape in the everyday repository commands | 2026-10-20 |
 | [0573](archive/2026-10-20-0573-retire-trivial-every-build-ready-change-has-a-spec.md) | Retire trivial: every build-ready change has a spec | 2026-10-20 |
 | [0571](archive/2026-10-20-0571-parent-closeout-waits-on-a-retargeted-child-so-a-parent-that.md) | Close out a landed stack parent without waiting on children that never merged into it | 2026-10-20 |
-| [0569](archive/2026-10-20-0569-flaky-and-failing-tests-standing-bucket.md) | Fix the flaky run-cancel worktree test | 2026-10-20 |
 | [0564](archive/2026-10-17-0564-check-groom-patch-overlap-on-records-without-updated-or-auto.md) | Check groom patch overlap on records without updated or auto_groomable | 2026-10-17 |
 | [0541](archive/2026-10-17-0541-the-implement-next-child-can-claim-without-run-context-so-a.md) | The implement-next child can claim without --run-context, so a tracked run loses attribution | 2026-10-17 |
 | [0345](archive/2026-10-16-0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | 2026-10-16 |
@@ -245,7 +238,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 79 done |
+| [2026-10](archive/) | 80 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
