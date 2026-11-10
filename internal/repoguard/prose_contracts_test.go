@@ -1653,8 +1653,11 @@ var alignmentContracts = []proseContract{
 			"Report the update as posted only with the connector's confirmation",
 			"Never run a retry loop.",
 			"When `visibility` is `shared`, **read `references/shared.md` now (blocking)**.",
+			"Its reads are the `context.ticket` operation and, for a request naming only a ticket, the `status` operation",
+			"`git -C <metadata_worktree_path> show <metadata_commit>:<path>`",
+			"when it is empty, say it merged into its parent change's branch without naming the branch",
 		},
-		absent: []string{"context: fork", "agent: docket-update-ticket"}},
+		absent: []string{"context: fork", "agent: docket-update-ticket", "Its one read is"}},
 	{sentinel: "change_0585_update_ticket_skill", file: "skills/docket-update-ticket/references/shared.md",
 		present: []string{
 			"Each `url` is pinned to `metadata_commit`",
@@ -1678,7 +1681,9 @@ var alignmentContracts = []proseContract{
 			"- [docket-update-ticket](#docket-update-ticket)",
 			"### Ticket context",
 			"- [Ticket context](#ticket-context)",
-		}},
+			"`docket-export`, `docket-link-ticket`, and `docket-update-ticket` also stay inline, because they\npost with your session's own tools.",
+		},
+		absent: []string{"work with you before posting"}},
 	{sentinel: "change_0585_update_ticket_skill", file: "docs/reference/config-keys.md",
 		present: []string{
 			"| `tickets.provider` | `\"\"` (unset) | repo-only | the ticket system this repository's changes link to (jira, linear, …); used when linking or creating a ticket |",

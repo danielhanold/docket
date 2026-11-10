@@ -1893,7 +1893,7 @@ abort-and-report rule: implement-next, auto-groom, finalize-change, status, adr,
 review. **Interactive** skills (`docket-new-change`, `docket-groom-next`) stay inline at the session
 model, because the conversation with you is the point. They only advise a model at startup.
 `docket-export`, `docket-link-ticket`, and `docket-update-ticket` also stay inline, because they
-post with your session's own tools and work with you before posting.
+post with your session's own tools.
 
 **Used for:** knowing which skills you can dispatch and walk away from, and which need you at the
 keyboard.

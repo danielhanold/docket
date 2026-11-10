@@ -13,7 +13,7 @@ Words used here: a **ticket** is the item in the team's ticket system; the **pro
 
 Invoke the `docket-convention` skill via the Skill tool first — unless already invoked this session — and run its *startup check*. Everything below uses its vocabulary.
 
-This skill makes no docket write. Its one read is the `context.ticket` operation (argv from the capability catalog), run with `--id <id>`, `--event <event>` when the update follows an event, and `--json`. Its result is under `context`: `visibility`, `change` (`status`, `deliverable`, `path`), `ticket` (`state`: `linked`, `not-linked`, or `partial`; and `provider`, `id`, `url` when `linked`), `event` (`happened`, and `reason` when not), `facts` (`pr_url`, `merge`), and `artifacts` (`role`, `path`, `url`).
+This skill makes no docket write. Its reads are the `context.ticket` operation and, for a request naming only a ticket, the `status` operation (section 1). Run `context.ticket` (argv from the capability catalog) with `--id <id>`, `--event <event>` when the update follows an event, and `--json`. Its result is under `context`: `metadata_commit`, `visibility`, `change` (`status`, `deliverable`, `path`), `ticket` (`state`: `linked`, `not-linked`, or `partial`; and `provider`, `id`, `url` when `linked`), `event` (`happened`, and `reason` when not), `facts` (`pr_url`, `merge`), and `artifacts` (`role`, `path`, `url`).
 
 ## 1. Work out the request
 
@@ -34,13 +34,13 @@ Post nothing and say why in one plain line when:
 
 ## 3. Write the update
 
-Read what the update needs: each file in `artifacts` at its `path`, and the change record at `change.path` for `## Closeout notes` or `## Why killed`. The record is read, never linked. Plans never go out: no link to a plan and nothing from one.
+Read what the update needs: each file in `artifacts` at its `path`, and the change record at `change.path` for `## Closeout notes` or `## Why killed`. Read each one as it stood at the pinned commit, from the metadata worktree (`metadata_worktree_path` from the startup check's `repository.prepare` context): `git -C <metadata_worktree_path> show <metadata_commit>:<path>`. The record is read, never linked. Plans never go out: no link to a plan and nothing from one.
 
 | Update | It says | Links |
 |---|---|---|
 | spec written | the approach and key decisions, and where the change stands now from its `status` (designed, not yet built; being built; built, PR open; merged); never a claim of review, approval, or authorship | the spec |
 | PR opened | the PR link, what was built, what the reviewer needs to know | the PR, the spec, and the results file |
-| PR merged | what merged and where (`facts.merge.destination_branch`; when `in_integration` is false, say it is not yet in the integration branch), key outcomes, and anything left to do, from the results file's Outcome and Known issues and the record's `## Closeout notes`; never a claim of deployment or acceptance | the results file |
+| PR merged | what merged and where (`facts.merge.destination_branch`; when it is empty, say it merged into its parent change's branch without naming the branch; when `in_integration` is false, say it is not yet in the integration branch), key outcomes, and anything left to do, from the results file's Outcome and Known issues and the record's `## Closeout notes`; never a claim of deployment or acceptance | the results file |
 | results completed | findings, conclusions, limits, and any action needed | the results file |
 | revision, blocker, or kill (no event) | what the person said, backed by the artifacts; for a kill, the record's `## Why killed` | the artifacts it discusses |
 
