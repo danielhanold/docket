@@ -1604,6 +1604,18 @@ var alignmentContracts = []proseContract{
 			"Never assume a one-call upload, and never substitute a local path for an attachment.",
 			"If recording fails, report the created ticket's URL and retry the link with a fresh `path` and `revision`; never create a second ticket.",
 		}},
+	// change 0584 — the import path: a ticket already on a change is named, not
+	// refused; nothing is invented; one approval; open questions follow through
+	// change.groom; the import happens once.
+	{sentinel: "change_0584_link_ticket_skill", file: "skills/docket-link-ticket/references/import.md",
+		present: []string{
+			"If any change record, active or archived, carries a `ticket` with the same provider and id, name it in the draft (`CLOUD-123 is also on #10`) and go ahead.",
+			"Never invent: when the ticket gives no basis for Why, What changes, or Out of scope, ask the person.",
+			"Map the ticket's type to one of the configured `change_types` (a Bug to `fix`, a Story to `feat`); with no obvious match, ask.",
+			"Show the drafted change (title, type, sections, and ticket) and create it only on the person's go.",
+			"When the draft has open questions, follow with one `change.groom` `outcome: revise` carrying `## Open questions`, using a fresh `path` and `revision` from the `status` operation.",
+			"The import happens once: nothing is synced from the ticket afterwards.",
+		}},
 }
 
 // oneLayoutAbsent are the retired metadata-layout spellings.
