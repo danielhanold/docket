@@ -2,7 +2,7 @@
 id: 589
 slug: 'make-export-its-own-command-docket-export-type-change-id'
 title: 'Make export its own command: docket export <type> <change_id>'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'refactor'
 deliverable: 'pr'
@@ -34,6 +34,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-11-10-make-export-its-own-command-docket-export-type-change-id-design.md](../../superpowers/specs/2026-11-10-make-export-its-own-command-docket-export-type-change-id-design.md) |
+| Spec (merged) | [2026-11-10-make-export-its-own-command-docket-export-type-change-id-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-11-10-make-export-its-own-command-docket-export-type-change-id-design.md) |
 | Plan | [2026-11-10-make-export-its-own-command-docket-export-type-change-id.md](../../superpowers/plans/2026-11-10-make-export-its-own-command-docket-export-type-change-id.md) |
 | Results | [2026-11-10-make-export-its-own-command-docket-export-type-change-id-results.md](../../results/2026-11-10-make-export-its-own-command-docket-export-type-change-id-results.md) |
 <!-- docket:artifacts:end -->

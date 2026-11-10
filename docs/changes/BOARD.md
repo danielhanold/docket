@@ -1,12 +1,6 @@
 # Backlog
 
-**591 changes** — 🔵 1 built · 🟡 6 proposed · ⚪ 15 deferred · ✅ 424 done · 🗑️ 145 killed
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0589](active/0589-make-export-its-own-command-docket-export-type-change-id.md) | Make export its own command: docket export <type> <change_id> | `medium` | `refactor` | [#454](https://github.com/danielhanold/docket/pull/454) | awaiting merge |
+**591 changes** — 🟡 6 proposed · ⚪ 15 deferred · ✅ 425 done · 🗑️ 145 killed
 
 ## 🟡 Proposed (6)
 
@@ -62,7 +56,6 @@ graph TD
   0585 --> 0587
   0586 --> 0588
   0587 --> 0588
-  0589
   0590
   0585 --> 0591
   0192:::done
@@ -73,10 +66,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (569)</summary>
+<details><summary>✅🗑️ Archive — done + killed (570)</summary>
 
 | # | Title | Closed |
 |---|-------|--------|
+| [0589](archive/2026-11-10-0589-make-export-its-own-command-docket-export-type-change-id.md) | Make export its own command: docket export <type> <change_id> | 2026-11-10 |
 | [0586](archive/2026-11-10-0586-post-a-ticket-update-on-request-in-a-private-repository.md) | Post a ticket update on request in a private repository | 2026-11-10 |
 | [0585](archive/2026-11-10-0585-post-a-ticket-update-on-request-shared-repositories.md) | Post a ticket update on request (shared repositories) | 2026-11-10 |
 | [0584](archive/2026-11-10-0584-create-a-ticket-from-a-change-or-a-change-from-a-ticket.md) | Create a ticket from a change, or a change from a ticket | 2026-11-10 |
@@ -92,7 +86,6 @@ graph TD
 | [0575](archive/2026-10-22-0575-retire-claim-reclaim-and-its-lease.md) | Retire claim reclaim and its lease | 2026-10-22 |
 | [0360](archive/2026-10-21-0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Stop implement-next tripping over its own bookkeeping | 2026-10-21 |
 | [0574](archive/2026-10-20-0574-stop-repository-prepare-re-walking-all-of-main-s-history-to.md) | Recognize the docket branch by its shape in the everyday repository commands | 2026-10-20 |
-| [0573](archive/2026-10-20-0573-retire-trivial-every-build-ready-change-has-a-spec.md) | Retire trivial: every build-ready change has a spec | 2026-10-20 |
 | [0564](archive/2026-10-17-0564-check-groom-patch-overlap-on-records-without-updated-or-auto.md) | Check groom patch overlap on records without updated or auto_groomable | 2026-10-17 |
 | [0541](archive/2026-10-17-0541-the-implement-next-child-can-claim-without-run-context-so-a.md) | The implement-next child can claim without --run-context, so a tracked run loses attribution | 2026-10-17 |
 | [0345](archive/2026-10-16-0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | 2026-10-16 |
@@ -242,7 +235,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 81 done |
+| [2026-10](archive/) | 82 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |

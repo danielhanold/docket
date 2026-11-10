@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0589 — Make export its own command: docket export <type> <change_id>](../../changes/active/0589-make-export-its-own-command-docket-export-type-change-id.md)**
+> ↩ **[Change 0589 — Make export its own command: docket export <type> <change_id>](../../changes/archive/2026-11-10-0589-make-export-its-own-command-docket-export-type-change-id.md)**
 <!-- docket:backlink:end -->
 
 # `docket export` — export as its own command
