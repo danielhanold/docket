@@ -40,6 +40,7 @@ const (
 	ReasonTicketMergeNotRecorded   = "merge-not-recorded"
 	ReasonTicketNotResultsArtifact = "not-results-artifact"
 	ReasonTicketNotCompleted       = "not-completed"
+	ReasonTicketKilled             = "killed"
 )
 
 // Ticket link states.
@@ -64,7 +65,7 @@ const (
 // Ordered token lists; the skill guard iterates these so the skill and this
 // producer cannot drift apart.
 var ticketEvents = []string{TicketEventSpecWritten, TicketEventPROpened, TicketEventPRMerged, TicketEventResultsCompleted}
-var ticketEventReasons = []string{ReasonTicketNoSpec, ReasonTicketNoPR, ReasonTicketMergeNotRecorded, ReasonTicketNotResultsArtifact, ReasonTicketNotCompleted}
+var ticketEventReasons = []string{ReasonTicketNoSpec, ReasonTicketNoPR, ReasonTicketMergeNotRecorded, ReasonTicketNotResultsArtifact, ReasonTicketNotCompleted, ReasonTicketKilled}
 var ticketStates = []string{TicketStateLinked, TicketStateNotLinked, TicketStatePartial}
 
 // TicketContextRequest is the closed request. Event "" is a no-event read.
@@ -339,6 +340,8 @@ func ticketEvent(c domain.Change, name string, pin StatusPin) *TicketContextEven
 		e.Switch = auto.PRMerged.Value
 		switch {
 		case prMerged(c):
+		case c.Status() == domain.StatusKilled:
+			e.Reason = ReasonTicketKilled
 		case !hasPR:
 			e.Reason = ReasonTicketNoPR
 		default:
@@ -349,6 +352,8 @@ func ticketEvent(c domain.Change, name string, pin StatusPin) *TicketContextEven
 		switch {
 		case c.Deliverable() != domain.DeliverableResultsArtifact:
 			e.Reason = ReasonTicketNotResultsArtifact
+		case c.Status() == domain.StatusKilled:
+			e.Reason = ReasonTicketKilled
 		case c.Status() != domain.StatusDone:
 			e.Reason = ReasonTicketNotCompleted
 		}
