@@ -57,6 +57,24 @@ func TestSchemaRevisionKeys(t *testing.T) {
 	}
 }
 
+// TestSchemaStatusRecordTicket: the status result publishes the records
+// inventory's ticket object, and only there — changes rows carry no ticket.
+func TestSchemaStatusRecordTicket(t *testing.T) {
+	keys := schemaKeyPaths(t)
+	for _, p := range []string{
+		"status RES records.ticket.provider",
+		"status RES records.ticket.id",
+		"status RES records.ticket.url",
+	} {
+		if !keys[p] {
+			t.Errorf("schema lacks %s", p)
+		}
+	}
+	if keys["status RES changes.ticket"] {
+		t.Error("schema publishes status RES changes.ticket")
+	}
+}
+
 // TestSchemaVocabularyRevisionCodes: the finding_codes vocabulary lists the
 // row-44a codes in their revision spelling and none of the retired ones.
 func TestSchemaVocabularyRevisionCodes(t *testing.T) {
