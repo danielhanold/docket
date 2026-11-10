@@ -52,3 +52,14 @@ func (l LinkContext) BlobURLOnBranch(repoRelPath, branch string) string {
 	}
 	return l.RepoWebURL + "/blob/" + branch + "/" + repoRelPath
 }
+
+// BlobURLAtCommit pins a link to one commit: RepoWebURL + "/blob/" + commit +
+// "/" + repoRelPath. It returns "" when RepoWebURL or commit is empty (never a
+// malformed "/blob//" URL), and for a private repository, whose metadata
+// commit has no web page.
+func (l LinkContext) BlobURLAtCommit(repoRelPath, commit string) string {
+	if l.RepoWebURL == "" || commit == "" || l.PrivateMetadata {
+		return ""
+	}
+	return l.RepoWebURL + "/blob/" + commit + "/" + repoRelPath
+}
