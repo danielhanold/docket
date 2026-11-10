@@ -66,5 +66,5 @@ Unchanged against main 6dacf9706: the spec was verified at this tip; dependency 
 command:  go run ./cmd/docket development test
 result:   green
 head_sha: ab87dd3b6503c662eae7891dbd18f515a8824cb5
-ran_at:   2026-11-10T13:39:21Z
+ran_at:   2026-11-10T15:20:58Z
 <!-- docket:build-evidence:end -->
