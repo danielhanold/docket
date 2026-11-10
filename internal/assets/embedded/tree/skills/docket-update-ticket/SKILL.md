@@ -29,7 +29,7 @@ Post nothing and say why in one plain line when:
 - `ticket.state` is `not-linked`: say the change has no ticket (`#612 has no ticket`).
 - `ticket.state` is `partial`: the link is broken; point the person to `docket-link-ticket` to fix or remove it.
 - The request names a different ticket than `ticket.id`: say which ticket the change carries.
-- `event.happened` is false: name the missing fact from `event.reason`. `no-spec`: the change has no spec. `no-pr`: it has no PR. `not-results-artifact`: it does not end in a results file. `not-completed`: its results are not complete. `merge-not-recorded`: say docket has not recorded a merge for the change and that, if the PR has merged, refreshing with `docket-status` records it; never say the PR has not merged.
+- `event.happened` is false: name the missing fact from `event.reason`. `no-spec`: the change has no spec. `no-pr`: it has no PR. `not-results-artifact`: it does not end in a results file. `not-completed`: its results are not complete. `merge-not-recorded`: say docket has not recorded a merge for the change and that, if the PR has merged, refreshing with `docket-status` records it; never say the PR has not merged. `killed`: the change was killed, so there is no merge or results update to post; offer a kill update instead.
 - `visibility` is `private`: say private repositories are not supported yet.
 
 ## 3. Write the update

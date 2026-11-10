@@ -21,8 +21,8 @@ func TestUpdateTicketSkillNamesEveryReadToken(t *testing.T) {
 	tokens = append(tokens, ticketEvents...)
 	tokens = append(tokens, ticketEventReasons...)
 	tokens = append(tokens, ticketStates...)
-	if len(tokens) != 12 {
-		t.Fatalf("context.ticket reports %d tokens, want 12 (4 events, 5 reasons, 3 states); update this guard with the producer", len(tokens))
+	if len(tokens) != 13 {
+		t.Fatalf("context.ticket reports %d tokens, want 13 (4 events, 6 reasons, 3 states); update this guard with the producer", len(tokens))
 	}
 	for _, tok := range tokens {
 		if !strings.Contains(body, "`"+tok+"`") {

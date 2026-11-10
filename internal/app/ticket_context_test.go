@@ -123,18 +123,20 @@ func TestContextTicketKilledChange(t *testing.T) {
 		event    string
 		extra    string
 		happened bool
+		reason   string
 	}{
-		{TicketEventPRMerged, "pr: '" + ticketPR + "'\nspec: " + ticketSpecPath + "\n", false},
-		{TicketEventResultsCompleted, "deliverable: results-artifact\nspec: " + ticketSpecPath + "\n", false},
-		{TicketEventSpecWritten, "pr: '" + ticketPR + "'\nspec: " + ticketSpecPath + "\n", true},
+		{TicketEventPRMerged, "pr: '" + ticketPR + "'\nspec: " + ticketSpecPath + "\n", false, ReasonTicketKilled},
+		{TicketEventPRMerged, "spec: " + ticketSpecPath + "\n", false, ReasonTicketKilled},
+		{TicketEventResultsCompleted, "deliverable: results-artifact\nspec: " + ticketSpecPath + "\n", false, ReasonTicketKilled},
+		{TicketEventSpecWritten, "pr: '" + ticketPR + "'\nspec: " + ticketSpecPath + "\n", true, ""},
 	}
 	for _, tc := range cases {
-		t.Run(tc.event, func(t *testing.T) {
+		t.Run(tc.event+"/"+tc.reason, func(t *testing.T) {
 			blob := ticketRecordBlob(1, "a", "killed", tc.extra)
 			got, _ := readTicket(t, ticketPin(t), []StatusBlob{blob}, nil, TicketContextRequest{ID: 1, Event: tc.event})
 			c := mustApplied(t, got)
-			if c.Event == nil || c.Event.Happened != tc.happened {
-				t.Errorf("event = %+v, want happened=%t", c.Event, tc.happened)
+			if c.Event == nil || c.Event.Happened != tc.happened || c.Event.Reason != tc.reason {
+				t.Errorf("event = %+v, want happened=%t reason=%q", c.Event, tc.happened, tc.reason)
 			}
 		})
 	}
