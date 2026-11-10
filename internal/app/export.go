@@ -128,6 +128,10 @@ func Export(ctx context.Context, deps OpenDeps, o ExportOptions) ExportResult {
 		_, _, err := ParseExportArgs(args)
 		return fail(openFailure{ResultInvalidInput, ReasonOpenInvalidTarget, err.Error()})
 	}
+	// Reusing invalid-target here is deliberate: only direct app-layer callers
+	// reach this path, because the CLI rejects a bad --warnings value as a usage
+	// error (exit 2) before the operation runs, and the spec removed the old
+	// invalid-option reason.
 	if err := ValidateExportWarnings(o.Warnings); err != nil {
 		return fail(openFailure{ResultInvalidInput, ReasonOpenInvalidTarget, err.Error()})
 	}
