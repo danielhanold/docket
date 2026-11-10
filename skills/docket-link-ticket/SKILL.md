@@ -24,7 +24,7 @@ Writes are change records on the metadata branch, made only through the `change.
 - **Shared tickets.** One ticket may be on several changes. When another change already carries this ticket, name it (`CLOUD-123 is also on #10`) and go ahead.
 - **Confirmation.** Record only after the connector confirms. Never report a ticket as created, found, or attached without the connector's confirmation.
 - **Failures.** A missing connector or a failed call is said plainly. An uncertain outcome is reported as uncertain, and the person decides whether to try again. Never run a retry loop of your own.
-- **Not this skill's.** Posting an update or comment to a ticket (`update CLOUD-123 now that the PR is open`).
+- **Not this skill's.** Posting an update or comment to a ticket (`update CLOUD-123 now that the PR is open`) is `docket-update-ticket`'s job.
 
 ## Routing
 

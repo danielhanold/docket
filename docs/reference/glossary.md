@@ -849,6 +849,16 @@ and recorded branch.
 docket context implementation --id 412 --json
 ```
 
+### Ticket context
+
+The read-only bundle `docket-update-ticket` reads before posting: the change's ticket link, the
+repository's visibility, whether the event has happened, the facts behind it, and spec and results
+links pinned to the metadata commit the read took.
+
+```sh
+docket context ticket --id 412 --event pr_opened --json
+```
+
 ### Implement-next / the drainer
 
 `docket-implement-next` — the autonomous workflow that picks the next build-ready change (or the
@@ -1836,6 +1846,16 @@ inline.
 @docket-status     # agent-dispatch: same pinned run, drillable live
 ```
 
+### docket-update-ticket
+
+The skill an agent session uses to post an update to a change's linked ticket when you ask. It posts
+one short comment through your session's own connector, with spec and results links pinned to the
+commit that holds them, and reports the update as posted only when the connector confirms. In a
+private repository it posts nothing yet.
+
+**Used for:** telling people in the ticket system that something happened. It runs inline, because
+it posts through your session's connector.
+
 ### Fork / forked skill
 
 On harnesses that support it, a skill can run as a fork of the current context rather than a fresh
@@ -1848,7 +1868,7 @@ back to the human. The forked skills are `docket-status`, `docket-adr`, `docket-
 `docket-auto-groom` (`context: fork` + `agent:` frontmatter).
 
 **Used for:** explaining why `docket-new-change`, `docket-groom-next`, `docket-export`,
-`docket-link-ticket`, and `docket-finalize-change` run inline. A headless finalize is authorized by naming ids instead.
+`docket-link-ticket`, `docket-update-ticket`, and `docket-finalize-change` run inline. A headless finalize is authorized by naming ids instead.
 
 ### Harness
 
@@ -1872,8 +1892,8 @@ every harness. It is program data, not user config, and each harness block is co
 abort-and-report rule: implement-next, auto-groom, finalize-change, status, adr, build-task, and
 review. **Interactive** skills (`docket-new-change`, `docket-groom-next`) stay inline at the session
 model, because the conversation with you is the point. They only advise a model at startup.
-`docket-export` and `docket-link-ticket` also stay inline, because they post with your session's own
-tools and work with you before posting.
+`docket-export`, `docket-link-ticket`, and `docket-update-ticket` also stay inline, because they
+post with your session's own tools and work with you before posting.
 
 **Used for:** knowing which skills you can dispatch and walk away from, and which need you at the
 keyboard.
@@ -2385,6 +2405,7 @@ docket development install --source ~/dev/docket
 - [docket-new-change](#docket-new-change)
 - [docket-review](#docket-review)
 - [docket-status](#docket-status)
+- [docket-update-ticket](#docket-update-ticket)
 - [Drive disposition: WAITING / PASSED / FAILED / HALTED](#drive-disposition-waiting--passed--failed--halted)
 - [Effects](#effects)
 - [Escalation (NEEDS_ESCALATION)](#build-tier--escalation) — see Build tier / escalation
@@ -2496,6 +2517,7 @@ docket development install --source ~/dev/docket
 - [Suite gate](#suite-gate)
 - [Sweep](#sweep)
 - [Sync integration](#sync-integration)
+- [Ticket context](#ticket-context)
 - [Tri-state verdict / halt exit code](#tri-state-verdict--halt-exit-code)
 - [Two invocation paths: skill-invoke vs agent-dispatch](#two-invocation-paths-skill-invoke-vs-agent-dispatch)
 - [Uninstall](#uninstall)

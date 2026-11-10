@@ -9,7 +9,7 @@ Docket artifacts carry links, generated blocks, and references that mean nothing
 
 This skill runs inline, in your own session: you post with your own tools, and you ask the person directly where a step below says to.
 
-Creating a ticket from a change, or linking or importing one, is `docket-link-ticket`'s job; it calls this skill only for a file export.
+Creating a ticket from a change, or linking or importing one, is `docket-link-ticket`'s job; it calls this skill only for a file export. Posting an update or comment to a ticket is `docket-update-ticket`'s job.
 
 ## 1. Resolve the operations
 
@@ -29,7 +29,7 @@ In a private repository, also run the `diagnostic.config` argv with `--repo-dir 
 Run the `open` argv as `<open argv> <what> [<id>] --export --print --json --repo-dir <repo root>`, where `<what>` is `change`, `spec`, `plan`, or `results` and `<id>` is the change the person named (omit it to use the change whose branch is checked out). Always `--export --print --json`: `--print` opens no viewer — the person may not be at the screen, and can ask you to open the file. Never pass `--warnings` unless the person asked for a filter on a file request; the default reports everything the private pass reads.
 
 - **File request** ("export the spec for 9"): the export's default destination, or `--output-path <place>` when the person names one.
-- **Outside-tool request** ("add the spec for 9 as a comment on PROJ-123"): `--output-path` set to a fresh directory from `mktemp -d "${TMPDIR:-/tmp}/docket-export.XXXXXX"`, so the person's downloads folder does not collect one file per post. Leave the file there and report its path.
+- **Outside-tool request** ("put the spec for 9 in a message to the design channel"): `--output-path` set to a fresh directory from `mktemp -d "${TMPDIR:-/tmp}/docket-export.XXXXXX"`, so the person's downloads folder does not collect one file per post. Leave the file there and report its path.
 
 **A failed export posts nothing.** If `result` is not `applied` or there is no `exported_path`, tell the person the `message` and stop. Never fall back to the raw file or a hand cleanup. This holds in every repository.
 
