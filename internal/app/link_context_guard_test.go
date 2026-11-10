@@ -69,7 +69,7 @@ func TestLinkContextSoleConstructor(t *testing.T) {
 	}
 	// Floor = the call sites the swap installed; adjust ONLY upward when new
 	// operations adopt the constructor.
-	const floor = 16
+	const floor = 19
 	if calls < floor {
 		t.Errorf("linkContextOf called %d times in production files, want >= %d — call sites deleted or bypassed", calls, floor)
 	}
