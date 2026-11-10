@@ -1,12 +1,12 @@
 # Backlog
 
-**591 changes** — 🟣 1 groomed · 🟡 6 proposed · ⚪ 15 deferred · ✅ 424 done · 🗑️ 145 killed
+**591 changes** — 🟢 1 in progress · 🟡 6 proposed · ⚪ 15 deferred · ✅ 424 done · 🗑️ 145 killed
 
-## 🟣 Groomed (1)
+## 🟢 In progress (1)
 
-| # | Title | Priority | Type | Spec | Readiness |
-|---|-------|----------|------|------|-----------|
-| [0589](active/0589-make-export-its-own-command-docket-export-type-change-id.md) | Make export its own command: docket export <type> <change_id> | `medium` | `refactor` | [spec](../superpowers/specs/2026-11-10-make-export-its-own-command-docket-export-type-change-id-design.md) | build-ready |
+| # | Title | Priority | Type | Spec | Branch | State |
+|---|-------|----------|------|------|--------|-------|
+| [0589](active/0589-make-export-its-own-command-docket-export-type-change-id.md) | Make export its own command: docket export <type> <change_id> | `medium` | `refactor` | [spec](../superpowers/specs/2026-11-10-make-export-its-own-command-docket-export-type-change-id-design.md) | `refactor/make-export-its-own-command-docket-export-type-change-id` | building |
 
 ## 🟡 Proposed (6)
 

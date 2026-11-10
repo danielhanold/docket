@@ -2,7 +2,7 @@
 id: 589
 slug: 'make-export-its-own-command-docket-export-type-change-id'
 title: 'Make export its own command: docket export <type> <change_id>'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'refactor'
 deliverable: 'pr'
@@ -19,7 +19,7 @@ results:
 auto_groomable:
 hold:
 branch_prefix:
-branch:
+branch: 'refactor/make-export-its-own-command-docket-export-type-change-id'
 pr:
 ticket_provider:
 ticket_id:
