@@ -1705,6 +1705,12 @@ var alignmentContracts = []proseContract{
 			"the exported files' paths so the person can attach them by hand",
 			"the update as posted only with the connector's confirmation, naming the ticket, the attachments, and anyone mentioned.",
 		}},
+	{sentinel: "change_0586_update_ticket_private", file: "docs/reference/skills-and-agents.md",
+		present: []string{"in a private repository it attaches cleaned copies of the spec and results instead"},
+		absent:  []string{"shared repositories only for now"}},
+	{sentinel: "change_0586_update_ticket_private", file: "docs/reference/glossary.md",
+		present: []string{"In a private repository it attaches cleaned copies of the spec and results instead of linking them, and posts the comment only after every attachment lands."},
+		absent:  []string{"In a private repository it posts nothing yet."}},
 	// change 0585 — docket-update-ticket joins the inline skills: export and
 	// link-ticket route update requests to it, the reference docs list it, and
 	// the tickets.provider/site/project keys now have an effect.
