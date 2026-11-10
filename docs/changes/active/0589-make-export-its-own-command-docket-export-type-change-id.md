@@ -15,7 +15,7 @@ discovered_from: [581]
 adrs: []
 spec: 'docs/superpowers/specs/2026-11-10-make-export-its-own-command-docket-export-type-change-id-design.md'
 plan: 'docs/superpowers/plans/2026-11-10-make-export-its-own-command-docket-export-type-change-id.md'
-results:
+results: 'docs/results/2026-11-10-make-export-its-own-command-docket-export-type-change-id-results.md'
 auto_groomable:
 hold:
 branch_prefix:
@@ -35,6 +35,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-11-10-make-export-its-own-command-docket-export-type-change-id-design.md](../../superpowers/specs/2026-11-10-make-export-its-own-command-docket-export-type-change-id-design.md) |
 | Plan | [2026-11-10-make-export-its-own-command-docket-export-type-change-id.md](../../superpowers/plans/2026-11-10-make-export-its-own-command-docket-export-type-change-id.md) |
+| Results | [2026-11-10-make-export-its-own-command-docket-export-type-change-id-results.md](../../results/2026-11-10-make-export-its-own-command-docket-export-type-change-id-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
