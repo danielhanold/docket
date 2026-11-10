@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:e3fa81515733f35af701eff662293c1524b46a504decdc24cce034c3f45b3423",
+  "asset_set_id": "sha256:f6dd34d360b44d6b6242079d94acb4dae6ed03266a1b43029ed1b3b62c5d4ae5",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -322,15 +322,15 @@
       "path": "skills/docket-convention/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 54347,
-      "sha256": "94f362932340a28e8a36cf9ce9e5fac5a9932f11b7d86d4e1aa44b58ad6cbf12"
+      "size": 54370,
+      "sha256": "aa82012df0a805de1ed21ea8a475aead91ca6b033798ca1c5234c4fdccb7292a"
     },
     {
       "path": "skills/docket-convention/references/agent-layer.md",
       "role": "skill",
       "mode": 420,
-      "size": 14389,
-      "sha256": "e20ea5e319c3e8129e7976d7ee8ec56948aed358958417b117197386401f84f2"
+      "size": 14412,
+      "sha256": "50fe98e714355ef3cf8d7fe4e87939071d7d4d250f17772508a40e7a8bf24e5e"
     },
     {
       "path": "skills/docket-convention/references/close-out.md",
