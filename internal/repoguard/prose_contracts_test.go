@@ -1632,7 +1632,7 @@ var alignmentContracts = []proseContract{
 	// in its own reference.
 	{sentinel: "change_0585_update_ticket_skill", file: "skills/docket-update-ticket/SKILL.md",
 		present: []string{
-			"This skill runs inline, in your own session, and only when the person asks",
+			"This skill runs inline, in the session or workflow agent that invokes it",
 			"run the read without `--event`",
 			"`not-linked`: say the change has no ticket (`#612 has no ticket`)",
 			"`partial`: the link is broken; point the person to `docket-link-ticket` to fix or remove it",

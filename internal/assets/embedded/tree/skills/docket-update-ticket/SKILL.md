@@ -5,7 +5,7 @@ description: 'Use when the person asks to post an update or comment about a chan
 
 # docket-update-ticket
 
-This skill runs inline, in your own session, and only when the person asks: it posts one short comment to a change's linked ticket with your own tools. Nothing here runs on its own after an event.
+This skill runs inline, in the session or workflow agent that invokes it: when the person asks, or when a docket workflow invokes it after an event whose `tickets.auto` switch is on. It posts one short comment to a change's linked ticket with that session's own tools.
 
 Words used here: a **ticket** is the item in the team's ticket system; the **provider** is which ticket system it is (`jira`, `linear`, …); a **connector** is the session's own tools for that system (an MCP server or plugin the person installed and signed in to); an **update** is the comment you post, with its links. Docket installs no connector and stores no credential.
 
@@ -14,6 +14,8 @@ Words used here: a **ticket** is the item in the team's ticket system; the **pro
 Invoke the `docket-convention` skill via the Skill tool first — unless already invoked this session — and run its *startup check*. Everything below uses its vocabulary.
 
 This skill makes no docket metadata write. Its reads are the `context.ticket` operation and, for a request naming only a ticket, the `status` operation (section 1); in a private repository it also invokes `docket-export`, which writes each exported file to a temp directory and may read `leak_check.match_word` through `diagnostic.config` (section 4). Run `context.ticket` (argv from the capability catalog) with `--id <id>`, `--event <event>` when the update follows an event, and `--json`. Its result is under `context`: `metadata_commit`, `visibility`, `change` (`status`, `deliverable`, `path`), `ticket` (`state`: `linked`, `not-linked`, or `partial`; and `provider`, `id`, `url` when `linked`), `event` (`happened`, and `reason` when not), `facts` (`pr_url`, `merge`), and `artifacts` (`role`, `path`, `url`).
+
+**Invoked by a workflow.** When a docket workflow invoked this skill after an event, **read `references/automatic.md` now (blocking)** before section 1. It replaces sections 1, 2, and 5, and every point where this skill would ask or wait.
 
 ## 1. Work out the request
 
