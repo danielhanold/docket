@@ -11,7 +11,7 @@ Words used here: a **ticket** is the item in the team's ticket system; the **pro
 
 ## Convention (load first — blocking)
 
-Invoke the `docket-convention` skill via the Skill tool first — unless already invoked this session — and run its *startup check*. Everything below uses its vocabulary.
+Invoke the `docket-convention` skill via the Skill tool first — unless already invoked this session — and run its *startup check*. When a docket workflow invoked this skill, that workflow has already run the startup check: run none here. Everything below uses its vocabulary.
 
 This skill makes no docket metadata write. Its reads are the `context.ticket` operation and, for a request naming only a ticket, the `status` operation (section 1); in a private repository it also invokes `docket-export`, which writes each exported file to a temp directory and may read `leak_check.match_word` through `diagnostic.config` (section 4). Run `context.ticket` (argv from the capability catalog) with `--id <id>`, `--event <event>` when the update follows an event, and `--json`. Its result is under `context`: `metadata_commit`, `visibility`, `change` (`status`, `deliverable`, `path`), `ticket` (`state`: `linked`, `not-linked`, or `partial`; and `provider`, `id`, `url` when `linked`), `event` (`happened`, and `reason` when not), `facts` (`pr_url`, `merge`), and `artifacts` (`role`, `path`, `url`).
 

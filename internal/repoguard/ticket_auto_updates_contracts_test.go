@@ -27,6 +27,7 @@ var autoTicketContracts = []autoTicketContract{
 			"This skill runs inline, in the session or workflow agent that invokes it",
 			"or when a docket workflow invokes it after an event whose `tickets.auto` switch is on",
 			"read `references/automatic.md` now (blocking)",
+			"When a docket workflow invoked this skill, that workflow has already run the startup check: run none here.",
 		},
 		absent: []string{
 			"Nothing here runs on its own after an event",
@@ -47,6 +48,9 @@ var autoTicketContracts = []autoTicketContract{
 			"no halt, no blocked marker, no changed disposition, and no metadata write",
 			"A duplicate comment is acceptable and is deleted by hand.",
 			"Never load `references/private.md` on this path.",
+			"**No startup check of its own.**",
+			"take `metadata_worktree_path` from the caller's `repository.prepare` context",
+			"A `refused` or `error` answer from a docket read on this path is never a stop: post nothing, report one line (`Not posted to #<id> (<event>): <reason>.`), and return to the workflow.",
 		}},
 	{file: "skills/docket-convention/SKILL.md",
 		present: []string{
@@ -172,7 +176,7 @@ func TestAutoTicketUpdateContracts(t *testing.T) {
 		}
 	})
 
-	const floor = 68
+	const floor = 72
 	checks := 0
 	for _, c := range autoTicketContracts {
 		body := readRepoFile(t, c.file)
