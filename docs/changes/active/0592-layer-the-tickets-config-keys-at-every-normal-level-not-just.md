@@ -43,11 +43,11 @@ The ticket settings (tickets.provider, tickets.site, tickets.project and the fiv
 
 ## What changes
 
-Trace why the tickets.* keys were made repo-only and whether that reason still holds. If the argument for normal layering holds, change all eight keys in the config schema to the same scope as ordinary keys, update the config docs and the docket-link-ticket / docket-update-ticket skill prose that says where the values come from, and add tests for each layer. If it does not hold, record the reasons in the spec and leave the keys repo-only.
+Trace why the tickets.* keys were made repo-only and whether that reason still holds. If the argument for normal layering holds, change all eight keys in the config schema to the same scope as ordinary keys, update the config docs and the docket-link-ticket / docket-update-ticket skill prose that says where the values come from, and add tests for each layer. Also fix the stale comment above the tickets block in .docket.example.yml, which says no docket command reads these settings yet and that linking a change does not consult them; rewrite it to describe how the settings are read today and which layers they can come from. If the layering argument does not hold, record the reasons in the spec and leave the keys repo-only, but still fix that comment.
 
 ## Acceptance criteria
 
-A value for each tickets.* key set in the global config or .docket.local.yml is honored with the usual per-field precedence, and diagnostic.config reports the layer it came from. Private-repository behavior for these keys is stated in the spec and covered by a test.
+A value for each tickets.* key set in the global config or .docket.local.yml is honored with the usual per-field precedence, and diagnostic.config reports the layer it came from. Private-repository behavior for these keys is stated in the spec and covered by a test. The comment above the tickets block in .docket.example.yml no longer claims that no docket command reads these settings, and matches how they are read and layered.
 
 ## Out of scope
 

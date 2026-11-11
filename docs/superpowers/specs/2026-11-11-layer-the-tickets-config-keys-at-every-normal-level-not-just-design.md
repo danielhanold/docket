@@ -39,6 +39,7 @@ For each key, ask whether a differing value across layers can make two clones of
 - Update the schema, decode, resolve, and defaults tests that enumerate the keys so each key has a case for global and `.docket.local.yml` layers, including precedence and provenance.
 - Add a case for the private-repository config path.
 - Update the prose contracts and skill text that describe where the values come from, and regenerate embedded assets after skill edits.
+- Fix the stale comment above the `tickets` block in `.docket.example.yml`: it says no docket command reads these settings yet, and that linking a change does not consult them. Rewrite it to describe how the settings are read today and which config layers they can come from.
 
 ## Out of scope
 
