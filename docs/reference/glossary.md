@@ -1803,10 +1803,12 @@ stub rather than groom it, routes to `revise`. It runs inline at the session mod
 
 The skill an agent session uses for ticket work. It links a change to an existing ticket, creates a
 ticket from a change, or makes a change from a ticket, working through your session's own
-connector tools for the ticket system. It records a link only after the connector confirms.
+connector tools for the ticket system. It records a link only after the connector confirms, except
+that with no connector you may link a ticket by its web address, reported as not verified.
 
 **Used for:** handing a change to a ticket system or pulling a ticket in. It runs inline, because it
-needs you present and posts through your session's connector.
+needs you present and posts through your session's connector. Docket never creates a ticket by
+itself ([why](../concepts/tickets.md#why-docket-never-creates-a-ticket-by-itself)).
 
 ### docket-new-change
 
@@ -1848,14 +1850,16 @@ inline.
 
 ### docket-update-ticket
 
-The skill an agent session uses to post an update to a change's linked ticket when you ask. It posts
-one short comment through your session's own connector, with spec and results links pinned to the
-commit that holds them, and reports the update as posted only when the connector confirms. In a
-private repository it attaches cleaned copies of the spec and results instead of linking them, and
-posts the comment only after every attachment lands.
+The skill an agent session uses to post an update to a change's linked ticket, when you ask or by
+itself after an event whose switch is on. It posts one short comment through the session's own
+connector, with spec and results links pinned to the commit that holds them, and reports the update
+as posted only when the connector confirms. In a private repository it attaches cleaned copies of
+the spec and results instead of linking them, and posts the comment only after every attachment
+lands. An automatic update in a private repository posts nothing and reports one line.
 
-**Used for:** telling people in the ticket system that something happened. It runs inline, because
-it posts through your session's connector.
+**Used for:** telling people in the ticket system that something happened. It runs inline, in
+whichever session or workflow agent invokes it, because it posts through that session's own
+connector. See [Tickets](../concepts/tickets.md).
 
 ### Fork / forked skill
 

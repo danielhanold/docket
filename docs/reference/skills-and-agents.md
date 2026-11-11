@@ -26,7 +26,7 @@ Each line names one skill directory under `skills/` and its job.
 - **docket-new-change** — capture a new unit of planned work into the backlog through up-front design.
 - **docket-review** — the bounded read-only whole-branch reviewer role.
 - **docket-status** — refresh the backlog, sweep merged changes to done, and run health checks.
-- **docket-update-ticket** — post a short update to a change's linked ticket when you ask (spec written, PR opened, PR merged, results completed, or a revision, blocker, or kill), with links pinned to the commit that holds them; in a private repository it attaches cleaned copies of the spec and results instead.
+- **docket-update-ticket** — post a short update to a change's linked ticket when you ask, or automatically after an event whose `tickets.auto` switch is on (spec written, PR opened, PR merged, results completed; a revision, blocker, or kill only when you ask), with links pinned to the commit that holds them; in a private repository it attaches cleaned copies of the spec and results instead, and an automatic update there posts nothing.
 
 ## Default workflow roles
 

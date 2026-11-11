@@ -24,3 +24,5 @@ parts, the invariants, and the decisions behind it.
   chain of gated steps: rebase, retest, publish, merge, archive, clean up.
 - [Learnings and ADRs as memory](./memory.md) — the two records docket keeps of
   why a decision was made and what a build taught.
+- [Tickets](./tickets.md) — how a change links to a ticket in your team's
+  ticket system, and what docket posts there.

@@ -72,8 +72,9 @@ Each key has one scope:
 you link a change to a ticket or create one from a change: it uses `provider`, `site`, and
 `project`, and asks for one it needs when it is empty. The four `auto` switches each let the
 workflow that just finished an event post that event's update to the change's ticket by itself,
-as a comment, with nothing asked. Off (the default) means nothing is posted or reported, and a
-switch does nothing for a change with no ticket. In a private repository an automatic update
+as a comment, with nothing asked. Creating a ticket has no switch: it is always on request
+([why](../concepts/tickets.md#why-docket-never-creates-a-ticket-by-itself)). Off (the default)
+means nothing is posted or reported, and a switch does nothing for a change with no ticket. In a private repository an automatic update
 posts nothing and reports one line. Each setting can come from any layer, so `provider` and
 `site` can be set once in the global config, and a switch can be tried on one machine in
 `.docket.local.yml`. To cancel a global value for one repository, write the default in

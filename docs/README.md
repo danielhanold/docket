@@ -89,6 +89,8 @@ Index: [concepts/README.md](concepts/README.md)
   steps: rebase, retest, merge, archive.
 - [Learnings and ADRs as memory](concepts/memory.md) — the two records docket keeps of why a decision
   was made and what a build taught.
+- [Tickets](concepts/tickets.md) — how a change links to a ticket in your team's ticket system,
+  and what docket posts there.
 
 ## Reference — exact fields and owners
 

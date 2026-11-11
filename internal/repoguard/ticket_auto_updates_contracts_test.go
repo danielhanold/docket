@@ -83,6 +83,53 @@ var autoTicketContracts = []autoTicketContract{
 			"never after `contended`, `blocked`, or `unknown`",
 			"`already-closed-out` for a change this run closed out",
 		}},
+	// The tickets concepts page: its sections, both reasons ticket creation is
+	// on request, the no-setting invariant, the three ways a change gets a
+	// ticket, the four switches, and its index lines. These keep the page from
+	// losing a part; its accuracy against the skills is checked by reading.
+	{file: "docs/concepts/tickets.md",
+		present: []string{
+			"# Tickets",
+			"## The problem it solves",
+			"## The moving parts",
+			"## The invariants",
+			"## Why docket never creates a ticket by itself",
+			"### Creating a ticket is a person's action",
+			"### There is no one right moment to create it",
+			"## Decided in",
+			"A ticket is created only when a person asks and approves the draft. No setting changes that.",
+			"link an existing ticket to a change",
+			"create a ticket from a change",
+			"make a change from a ticket",
+			"`tickets.auto.spec_written`",
+			"`tickets.auto.pr_opened`",
+			"`tickets.auto.pr_merged`",
+			"`tickets.auto.results_completed`",
+			"retry uploads after a timeout",
+			"agents report on tickets, and people create them",
+			"an automatic update posts nothing and reports one line",
+		},
+		absent: []string{"change_created", "was once planned", "dropped"}},
+	{file: "docs/concepts/README.md",
+		present: []string{"[Tickets](./tickets.md)"}},
+	{file: "docs/README.md",
+		present: []string{"[Tickets](concepts/tickets.md)"}},
+	{file: "docs/reference/config-keys.md",
+		present: []string{
+			"Creating a ticket has no switch: it is always on request",
+			"../concepts/tickets.md#why-docket-never-creates-a-ticket-by-itself",
+		}},
+	{file: "docs/reference/glossary.md",
+		present: []string{
+			"Docket never creates a ticket by itself",
+			"../concepts/tickets.md#why-docket-never-creates-a-ticket-by-itself",
+			"or by itself after an event whose switch is on",
+			"An automatic update in a private repository posts nothing and reports one line.",
+		},
+		absent: []string{"to a change's linked ticket when you ask. It posts"}},
+	{file: "docs/reference/skills-and-agents.md",
+		present: []string{"when you ask, or automatically after an event whose `tickets.auto` switch is on"},
+		absent:  []string{"linked ticket when you ask (spec written"}},
 }
 
 // autoTicketViolations returns one message per missing present phrase and per
@@ -124,7 +171,7 @@ func TestAutoTicketUpdateContracts(t *testing.T) {
 		}
 	})
 
-	const floor = 35
+	const floor = 68
 	checks := 0
 	for _, c := range autoTicketContracts {
 		body := readRepoFile(t, c.file)
