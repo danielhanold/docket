@@ -2,7 +2,7 @@
 id: 591
 slug: 'follow-the-team-s-own-ticket-skill-for-project-specific-tick'
 title: 'Follow a companion skill when creating a ticket'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'feat'
 deliverable: 'pr'
@@ -34,6 +34,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-11-11-follow-the-team-s-own-ticket-skill-for-project-specific-tick-design.md](../../superpowers/specs/2026-11-11-follow-the-team-s-own-ticket-skill-for-project-specific-tick-design.md) |
+| Spec (merged) | [2026-11-11-follow-the-team-s-own-ticket-skill-for-project-specific-tick-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-11-11-follow-the-team-s-own-ticket-skill-for-project-specific-tick-design.md) |
 | Plan | [2026-11-11-follow-the-team-s-own-ticket-skill-for-project-specific-tick.md](../../superpowers/plans/2026-11-11-follow-the-team-s-own-ticket-skill-for-project-specific-tick.md) |
 | Results | [2026-11-11-follow-the-team-s-own-ticket-skill-for-project-specific-tick-results.md](../../results/2026-11-11-follow-the-team-s-own-ticket-skill-for-project-specific-tick-results.md) |
 | ADRs | [ADR-0162](../../adrs/0162-ticket-work-is-two-inline-skills-split-by-attended-linking-v.md) |

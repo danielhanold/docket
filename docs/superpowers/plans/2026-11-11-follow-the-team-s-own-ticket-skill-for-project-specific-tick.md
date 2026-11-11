@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0591 — Follow a companion skill when creating a ticket](../../changes/active/0591-follow-the-team-s-own-ticket-skill-for-project-specific-tick.md)**
+> ↩ **[Change 0591 — Follow a companion skill when creating a ticket](../../changes/archive/2026-11-11-0591-follow-the-team-s-own-ticket-skill-for-project-specific-tick.md)**
 <!-- docket:backlink:end -->
 
 # Follow a companion skill when creating a ticket Implementation Plan
