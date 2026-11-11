@@ -191,7 +191,6 @@ func TestFixtureSparseDefaults(t *testing.T) {
 		{"tickets.site", eff.Tickets.Site.Explicit, eff.Tickets.Site.Provenance.Layer},
 		{"tickets.project", eff.Tickets.Project.Explicit, eff.Tickets.Project.Provenance.Layer},
 		{"tickets.companion_skill", eff.Tickets.CompanionSkill.Explicit, eff.Tickets.CompanionSkill.Provenance.Layer},
-		{"tickets.auto.change_created", eff.Tickets.Auto.ChangeCreated.Explicit, eff.Tickets.Auto.ChangeCreated.Provenance.Layer},
 		{"tickets.auto.spec_written", eff.Tickets.Auto.SpecWritten.Explicit, eff.Tickets.Auto.SpecWritten.Provenance.Layer},
 		{"tickets.auto.pr_opened", eff.Tickets.Auto.PROpened.Explicit, eff.Tickets.Auto.PROpened.Provenance.Layer},
 		{"tickets.auto.pr_merged", eff.Tickets.Auto.PRMerged.Explicit, eff.Tickets.Auto.PRMerged.Provenance.Layer},

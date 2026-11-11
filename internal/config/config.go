@@ -161,7 +161,6 @@ type Tickets struct {
 // TicketsAuto holds the switches that let docket act on a linked ticket on
 // its own after each event. All default off.
 type TicketsAuto struct {
-	ChangeCreated    Value[bool] `json:"change_created"`
 	SpecWritten      Value[bool] `json:"spec_written"`
 	PROpened         Value[bool] `json:"pr_opened"`
 	PRMerged         Value[bool] `json:"pr_merged"`

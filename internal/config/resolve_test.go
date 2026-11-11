@@ -111,8 +111,6 @@ func effectiveLeaf(t *testing.T, eff Effective, path string) (any, Provenance, b
 		return eff.Tickets.Project.Value, eff.Tickets.Project.Provenance, eff.Tickets.Project.Explicit
 	case "tickets.companion_skill":
 		return eff.Tickets.CompanionSkill.Value, eff.Tickets.CompanionSkill.Provenance, eff.Tickets.CompanionSkill.Explicit
-	case "tickets.auto.change_created":
-		return eff.Tickets.Auto.ChangeCreated.Value, eff.Tickets.Auto.ChangeCreated.Provenance, eff.Tickets.Auto.ChangeCreated.Explicit
 	case "tickets.auto.spec_written":
 		return eff.Tickets.Auto.SpecWritten.Value, eff.Tickets.Auto.SpecWritten.Provenance, eff.Tickets.Auto.SpecWritten.Explicit
 	case "tickets.auto.pr_opened":
@@ -1529,8 +1527,8 @@ func TestTicketsKeysAnyLayer(t *testing.T) {
 			seen[spec.path] = true
 		}
 	}
-	if len(rows) != 9 || !seen["tickets.provider"] || !seen["tickets.auto.results_completed"] {
-		t.Fatalf("tickets population = %v, want the nine ticket settings", seen)
+	if len(rows) != 8 || !seen["tickets.provider"] || !seen["tickets.auto.results_completed"] {
+		t.Fatalf("tickets population = %v, want the eight ticket settings", seen)
 	}
 
 	for _, spec := range rows {

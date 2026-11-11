@@ -400,8 +400,6 @@ func buildRegistry() []pathSpec {
 		{path: "tickets.companion_skill", kind: kindString, def: "",
 			merge: mergeScalar, scope: scopeAny, disp: dispSupported,
 			validate: singleLineStringLeaf()},
-		{path: "tickets.auto.change_created", kind: kindBool, def: false,
-			merge: mergeScalar, scope: scopeAny, disp: dispSupported, validate: boolLeaf()},
 		{path: "tickets.auto.spec_written", kind: kindBool, def: false,
 			merge: mergeScalar, scope: scopeAny, disp: dispSupported, validate: boolLeaf()},
 		{path: "tickets.auto.pr_opened", kind: kindBool, def: false,

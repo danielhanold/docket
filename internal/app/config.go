@@ -277,7 +277,6 @@ func effectiveLines(eff *config.Effective) []effectiveLine {
 		leafLine("tickets.site", textValue(eff.Tickets.Site.Value), eff.Tickets.Site.Provenance),
 		leafLine("tickets.project", textValue(eff.Tickets.Project.Value), eff.Tickets.Project.Provenance),
 		leafLine("tickets.companion_skill", textValue(eff.Tickets.CompanionSkill.Value), eff.Tickets.CompanionSkill.Provenance),
-		leafLine("tickets.auto.change_created", strconv.FormatBool(eff.Tickets.Auto.ChangeCreated.Value), eff.Tickets.Auto.ChangeCreated.Provenance),
 		leafLine("tickets.auto.spec_written", strconv.FormatBool(eff.Tickets.Auto.SpecWritten.Value), eff.Tickets.Auto.SpecWritten.Provenance),
 		leafLine("tickets.auto.pr_opened", strconv.FormatBool(eff.Tickets.Auto.PROpened.Value), eff.Tickets.Auto.PROpened.Provenance),
 		leafLine("tickets.auto.pr_merged", strconv.FormatBool(eff.Tickets.Auto.PRMerged.Value), eff.Tickets.Auto.PRMerged.Provenance),
