@@ -1,12 +1,6 @@
 # Backlog
 
-**592 changes** — 🔵 1 built · 🟡 5 proposed · ⚪ 15 deferred · ✅ 426 done · 🗑️ 145 killed
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0592](active/0592-layer-the-tickets-config-keys-at-every-normal-level-not-just.md) | Layer the tickets.* config keys at every normal level, not just the repo | `medium` | `refactor` | [#456](https://github.com/danielhanold/docket/pull/456) | awaiting merge |
+**592 changes** — 🟡 5 proposed · ⚪ 15 deferred · ✅ 427 done · 🗑️ 145 killed
 
 ## 🟡 Proposed (5)
 
@@ -62,7 +56,6 @@ graph TD
   0586 --> 0588
   0587 --> 0588
   0590
-  0592
   0192:::done
   0544:::done
   0584:::done
@@ -71,10 +64,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (571)</summary>
+<details><summary>✅🗑️ Archive — done + killed (572)</summary>
 
 | # | Title | Closed |
 |---|-------|--------|
+| [0592](archive/2026-11-11-0592-layer-the-tickets-config-keys-at-every-normal-level-not-just.md) | Layer the tickets.* config keys at every normal level, not just the repo | 2026-11-11 |
 | [0591](archive/2026-11-11-0591-follow-the-team-s-own-ticket-skill-for-project-specific-tick.md) | Follow a companion skill when creating a ticket | 2026-11-11 |
 | [0589](archive/2026-11-10-0589-make-export-its-own-command-docket-export-type-change-id.md) | Make export its own command: docket export <type> <change_id> | 2026-11-10 |
 | [0586](archive/2026-11-10-0586-post-a-ticket-update-on-request-in-a-private-repository.md) | Post a ticket update on request in a private repository | 2026-11-10 |
@@ -90,7 +84,6 @@ graph TD
 | [0578](archive/2026-10-23-0578-invoke-the-artifact-export-from-an-agent-session.md) | Invoke the artifact export from an agent session | 2026-10-23 |
 | [0577](archive/2026-10-22-0577-fix-duplicate-originhasbranch-breaking-combined-tag-go-vet.md) | Fix duplicate originHasBranch breaking combined-tag go vet | 2026-10-22 |
 | [0575](archive/2026-10-22-0575-retire-claim-reclaim-and-its-lease.md) | Retire claim reclaim and its lease | 2026-10-22 |
-| [0360](archive/2026-10-21-0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Stop implement-next tripping over its own bookkeeping | 2026-10-21 |
 | [0564](archive/2026-10-17-0564-check-groom-patch-overlap-on-records-without-updated-or-auto.md) | Check groom patch overlap on records without updated or auto_groomable | 2026-10-17 |
 | [0541](archive/2026-10-17-0541-the-implement-next-child-can-claim-without-run-context-so-a.md) | The implement-next child can claim without --run-context, so a tracked run loses attribution | 2026-10-17 |
 | [0345](archive/2026-10-16-0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | 2026-10-16 |
@@ -240,7 +233,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 83 done |
+| [2026-10](archive/) | 84 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |

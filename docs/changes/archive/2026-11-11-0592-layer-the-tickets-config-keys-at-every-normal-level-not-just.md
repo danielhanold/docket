@@ -2,7 +2,7 @@
 id: 592
 slug: 'layer-the-tickets-config-keys-at-every-normal-level-not-just'
 title: 'Layer the tickets.* config keys at every normal level, not just the repo'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'refactor'
 deliverable: 'pr'
@@ -34,6 +34,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-11-11-layer-the-tickets-config-keys-at-every-normal-level-not-just-design.md](../../superpowers/specs/2026-11-11-layer-the-tickets-config-keys-at-every-normal-level-not-just-design.md) |
+| Spec (merged) | [2026-11-11-layer-the-tickets-config-keys-at-every-normal-level-not-just-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-11-11-layer-the-tickets-config-keys-at-every-normal-level-not-just-design.md) |
 | Plan | [2026-11-10-layer-the-tickets-config-keys-at-every-normal-level-not-just.md](../../superpowers/plans/2026-11-10-layer-the-tickets-config-keys-at-every-normal-level-not-just.md) |
 | Results | [2026-11-10-layer-the-tickets-config-keys-at-every-normal-level-not-just-results.md](../../results/2026-11-10-layer-the-tickets-config-keys-at-every-normal-level-not-just-results.md) |
 | ADRs | [ADR-0019](../../adrs/0019-global-config-fence-classification.md), [ADR-0161](../../adrs/0161-ticket-fields-are-three-flat-stored-scalars-and-issue-is-ret.md), [ADR-0162](../../adrs/0162-ticket-work-is-two-inline-skills-split-by-attended-linking-v.md) |

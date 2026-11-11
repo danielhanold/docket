@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0592 — Layer the tickets.* config keys at every normal level, not just the repo](../../changes/active/0592-layer-the-tickets-config-keys-at-every-normal-level-not-just.md)**
+> ↩ **[Change 0592 — Layer the tickets.* config keys at every normal level, not just the repo](../../changes/archive/2026-11-11-0592-layer-the-tickets-config-keys-at-every-normal-level-not-just.md)**
 <!-- docket:backlink:end -->
 
 # Layer the tickets.* config keys at every normal level
