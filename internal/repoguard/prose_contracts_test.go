@@ -1771,7 +1771,6 @@ var alignmentContracts = []proseContract{
 		present: []string{
 			"| `tickets.site` | `\"\"` (unset) | any layer |",
 			"| `tickets.project` | `\"\"` (unset) | any layer |",
-			"| `tickets.auto.change_created` | `false` | any layer |",
 			"| `tickets.auto.spec_written` | `false` | any layer |",
 			"| `tickets.auto.pr_opened` | `false` | any layer |",
 			"| `tickets.auto.pr_merged` | `false` | any layer |",
@@ -1785,6 +1784,9 @@ var alignmentContracts = []proseContract{
 			"Linking a change to a ticket does not consult them",
 			"| repo-only | the ticket system ",
 			"| repo-only | a switch for ",
+			"tickets.auto.change_created",
+			"nothing acts on them yet",
+			"; no effect yet |",
 		}},
 	{sentinel: "change_0592_tickets_any_layer", file: ".docket.example.yml",
 		present: []string{"#     project: \"\"", "#       pr_opened: false"},
@@ -1792,6 +1794,8 @@ var alignmentContracts = []proseContract{
 			"No docket command reads these settings yet",
 			"These settings belong to the repository",
 			"Unlike the other ticket settings",
+			"change_created",
+			"does not act on them yet",
 		}},
 }
 

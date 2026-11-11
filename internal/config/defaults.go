@@ -63,7 +63,6 @@ func builtinEffective() Effective {
 			Project:        builtinValue(""),
 			CompanionSkill: builtinValue(""),
 			Auto: TicketsAuto{
-				ChangeCreated:    builtinValue(false),
 				SpecWritten:      builtinValue(false),
 				PROpened:         builtinValue(false),
 				PRMerged:         builtinValue(false),
