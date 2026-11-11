@@ -41,6 +41,7 @@ var autoTicketContracts = []autoTicketContract{
 			"automatic updates are not available in a private repository",
 			"when no connector for `ticket.provider` is available in this session",
 			"an uncertain outcome is reported as uncertain",
+			"**`event.switch` is `false`:** post nothing and say nothing, whatever the caller directed.",
 			"`ticket.state` is `not-linked`:** post nothing and say nothing",
 			"Never retry, and never touch the calling run",
 			"no halt, no blocked marker, no changed disposition, and no metadata write",
