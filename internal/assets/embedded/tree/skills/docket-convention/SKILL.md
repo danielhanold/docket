@@ -308,6 +308,16 @@ A stub is **auto-groomable** — selectable by `docket-auto-groom` — when it i
 
 **Interactive selection bands.** `docket-groom-next` still sees every needs-grooming stub, but its default order prefers stubs that need a human: (1) abstained (`## Auto-groom blocked` present), (2) `auto_groomable` unset or `false`, (3) `auto_groomable: true` — flagged "docket-auto-groom will handle it unless you want it now." Within each band, the deterministic selection order applies. The board renders abstained stubs as **auto-groom blocked — needs you**, distinct from plain needs-grooming.
 
+### Automatic ticket updates (shared definition)
+
+A `tickets.auto.<event>` switch lets the workflow that just finished an event post that event's update to the change's ticket by itself. Each workflow's own site names its event and the point it fires at. Every site does these three things, in order:
+
+1. **Read.** Run the `context.ticket` operation (argv from the capability catalog) with `--id <id> --event <event> --json`.
+2. **Stay silent** when `context.event.switch` is `false` or `context.ticket.state` is `not-linked`: do nothing more and say nothing — no post, no prompt, no report line.
+3. **Otherwise invoke `docket-update-ticket`** with the site's own `DIRECTED to:` direction, which names the change and the event and says the update is automatic.
+
+A read that does not return `result: applied` costs one report line, `Ticket update for #<id> not checked: <reason>`, and the run carries on. An automatic update never prompts, waits, queues, retries, or records an update as owed. Its outcome never changes a run's disposition, writes a halt or blocked marker, or stops a later step: a failed or impossible post is one report line. A replayed success posts like a first success, so a retried run may post a duplicate, which is deleted by hand. Only the sites post. A closeout run as housekeeping (the maintenance sweep, a status refresh, or implement-next's closeout of a named change's merged dependencies) posts nothing, and when a stack root lands only the root's ticket is updated.
+
 ### Discovered work
 
 Work an autonomous skill discovers mid-run is **reported in the run's final report, never silently
