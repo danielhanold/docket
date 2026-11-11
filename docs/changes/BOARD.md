@@ -1,6 +1,6 @@
 # Backlog
 
-**592 changes** — 🔵 1 built · 🟡 4 proposed · ⚪ 15 deferred · ✅ 427 done · 🗑️ 145 killed
+**593 changes** — 🔵 1 built · 🟡 5 proposed · ⚪ 15 deferred · ✅ 427 done · 🗑️ 145 killed
 
 ## 🔵 Built (1)
 
@@ -8,10 +8,11 @@
 |---|-------|----------|------|----|-------|
 | [0587](active/0587-update-tickets-automatically-after-each-event.md) | Update tickets automatically after each event | `medium` | `feat` | [#457](https://github.com/danielhanold/docket/pull/457) | awaiting merge |
 
-## 🟡 Proposed (4)
+## 🟡 Proposed (5)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0593](active/0593-fix-two-glossary-entries-for-automatic-ticket-updates.md) | Fix two glossary entries for automatic ticket updates | `low` | `docs` | needs-grooming |
 | [0588](active/0588-update-tickets-automatically-in-a-private-repository.md) | Update tickets automatically in a private repository | `medium` | `feat` | ⏳ waiting on #587 — needs your merge |
 | [0590](active/0590-have-reviewers-check-a-build-against-its-acceptance-criteria.md) | Have reviewers check a build against its acceptance criteria when the change has them | `medium` | `feat` | needs-grooming |
 | [0576](active/0576-run-the-brainstorm-builder-check-on-a-pinned-cheaper-model-a.md) | Run the brainstorm builder check on a pinned, cheaper model and effort | `high` | `feat` | needs-grooming |
@@ -60,6 +61,7 @@ graph TD
   0586 --> 0588
   0587 --> 0588
   0590
+  0593
   0192:::done
   0544:::done
   0585:::done
