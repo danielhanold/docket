@@ -4,7 +4,7 @@
 
 # Update tickets automatically after each event — design
 
-Change #587, groomed interactively on 2026-11-11. Revised the same day at the person's request to add decision 9, which documents why ticket creation is not automated. Revised again to add the update note on ADR-0162.
+Change #587, groomed interactively on 2026-11-11. Revised the same day at the person's request to add decision 9, which documents why ticket creation is not automated. Revised again to add the update note on ADR-0162, and again to widen the concepts page to the whole of ticket work.
 
 ## Intent
 
@@ -155,21 +155,53 @@ Whether a connector is reachable inside such an agent depends on the harness. AD
 
 Where a connector is not reachable, the result is the "no connector" line in decision 4. It is never a handoff to the parent session, and no site is moved to make up for it.
 
-### 9. The reason ticket creation is not automated is documented for users
+### 9. A concepts page explains how ticket work fits together, and why ticket creation is not automated
 
-A person who turns on the four switches will ask why there is no switch that creates the ticket. The answer must be in docket's own documentation, in detail, not only in this spec and the ADR. This was added to the design by the person after the first spec landed.
+Docket's user docs have no page that explains ticket work. It appears only in the reference tier: the config keys, the glossary, and the skills list. A person who wants to know what docket does with their ticket system has to piece it together from those entries, and a person who turns on the four switches will ask why there is no switch that creates the ticket.
 
-**Where it goes.** A new page in the concepts tier, `docs/concepts/tickets.md`. That tier is where docket explains "what each piece is and why it is shaped the way it is", and it has no page about tickets today: ticket work appears only in the reference tier (the config keys, the glossary, and the skills list). The concepts tier was chosen at grooming; the person asked for "the normal docket documentation sections" and did not name a tier.
+This change adds that page. The person added it to the design in two steps after the first spec landed: first the detailed reasoning for why ticket creation is not automated, then the higher-level description of how ticket work fits together.
 
-**The page's shape.** It follows the four sections every concepts page has, kept short and limited to what docket does once this change is built, plus one extra section that carries the detail:
+**Where it goes.** A new page in the concepts tier, `docs/concepts/tickets.md`. That tier is where docket explains "what each piece is and why it is shaped the way it is". The concepts tier was chosen at grooming; the person asked for "the normal docket documentation sections" and did not name a tier.
 
-- *The problem it solves*: a team tracks work in a ticket system and docket tracks it in changes; without a connection, a person copies status across by hand. Docket links the two and keeps the ticket informed without owning the ticket system: it installs no connector, stores no credential, and decides nothing about what the team is asked to work on.
-- *The moving parts*: the link on a change record; `docket-link-ticket` (link, create, or import, always with the person present); `docket-update-ticket` (a short comment, when the person asks or when a workflow invokes it); the four `tickets.auto.*` switches and the event each one follows; the connector.
-- *The invariants*: a ticket is created only when a person asks and approves the draft, and no setting changes that; a link is recorded only after the connector confirms; an automatic update posts only when its switch is on and the change already has a ticket; with the switch off nothing happens and nothing is reported; an update that fails or cannot be posted costs one report line and never stops, fails, or retries a run.
-- *Why docket never creates a ticket by itself*: the extra section, drafted below.
-- *Decided in*: the ADR this change records (see *ADR*), ADR-0162, and ADR-0044, cited the way the docs already cite an ADR whose file is not on the integration branch.
+**What kind of page it is.** It is the one place that explains the whole of ticket work at the level of what the pieces are, who acts, and what docket guarantees. It describes docket as it behaves once this change is built, including the parts earlier changes built (linking, creating, importing, on-request updates). It is not a walkthrough with steps, and it does not repeat the reference tier: it names each setting in a line and links to `config-keys.md` for the rest.
 
-**The extra section, in draft.** The builder may reword it and fit it to the page, but every point below must survive, including the worked example. It is deliberately long: the person asked for very detailed documentation.
+**Source of truth.** The lists below say what the page covers, not what is true. The builder writes every statement from the skills and the binary as they stand at build time (`skills/docket-link-ticket/`, `skills/docket-update-ticket/`, the convention's *Ticket link* definition, and the `context.ticket` read), and where one of them disagrees with a line below, the skill or the binary wins.
+
+**The page's sections.** The four every concepts page has, plus one extra:
+
+*The problem it solves.* A team tracks work in a ticket system and docket tracks it in changes. Without a connection, a person copies status across by hand: pastes the spec link, notes that the PR opened, notes the merge. Docket links the two and keeps the ticket informed without owning the ticket system: it installs no connector, stores no credential, has no code for any one ticket system, and decides nothing about what the team is asked to work on.
+
+*The moving parts.* Each of these gets a short paragraph or a bullet, and the page opens the section with a diagram, as the other concepts pages do:
+
+- **The link.** A change carries at most one ticket: the ticket system, the ticket's id, and its web address, stored on the change record and shown in the change's artifacts table. One ticket may be on several changes. A change can be linked in any status, including after it is archived. A broken link is reported as a finding and never blocks anything.
+- **Three ways a change gets a ticket**, all through `docket-link-ticket` and all with the person present:
+  - link an existing ticket to a change;
+  - create a ticket from a change: docket checks that the change is ready to hand over, asks about what is missing, shows the whole draft, and creates on the person's go;
+  - make a change from a ticket: the ticket is read once and becomes a stub to groom; nothing is synced from the ticket afterwards.
+- **Updates.** `docket-update-ticket` posts one short comment written for people. It is posted in one of two ways:
+  - on request, at any time, for any of the four events below and also for a revised spec, a blocker or a needed decision, or a killed change; the person can name people to mention;
+  - automatically, after one of the four events, when that event's switch is on and the change already has a ticket.
+- **The four events.** One table: the event, when it happens, which workflow posts the automatic update, what the update says, and what goes with it (the spec, the PR, the results file). The page also says what never posts automatically, in plain words: a change the maintenance sweep closed out, the stacked children of a root that lands, and anything that is not one of the four events.
+- **What goes with an update.** In a shared repository, links pinned to the commit that holds each file, so a reader sees the file as it stood when the update was written. In a private repository nothing can be linked: an on-request update attaches cleaned copies instead, and an automatic update posts nothing and reports one line.
+- **The connector.** Docket reaches the ticket system only through the tools the running agent session already has. With no connector, a ticket can still be linked by its address, unverified; creating, importing, and updating cannot happen and say so.
+- **The settings.** One line each for where tickets go (`tickets.provider`, `tickets.site`, `tickets.project`), the team's own ticket skill (`tickets.companion_skill`) and what it may and may not decide, and the four `tickets.auto.*` switches, with a link to `config-keys.md`.
+- **When something goes wrong.** An update that fails or cannot be posted costs one report line. Nothing is retried, queued, or recorded as owed, and no run stops for it. The person can ask for the update later, and it is written from the files as they stand then.
+
+*The invariants.*
+
+- A ticket is created only when a person asks and approves the draft. No setting changes that.
+- A link is recorded only after the connector confirms the ticket.
+- An automatic update posts only when its switch is on and the change already has a ticket. With the switch off, nothing happens and nothing is reported.
+- An update is reported as posted only with the connector's confirmation.
+- A failed update never stops, fails, or retries a run. A duplicate comment is deleted by hand.
+- After a ticket exists, docket only adds comments and attachments to it. It never changes the ticket's status, assignee, fields, or description, and nothing flows back from the ticket into the change.
+- Docket installs no connector and stores no credential.
+
+*Why docket never creates a ticket by itself.* The extra section, drafted below.
+
+*Decided in.* The ADR this change records (see *ADR*), ADR-0162, ADR-0161, and ADR-0044, cited the way the docs already cite an ADR whose file is not on the integration branch.
+
+**The extra section, in draft.** The builder may reword it and fit it to the page, but every point below must survive, including the worked example. It is deliberately long: the person asked for very detailed documentation. It is the only part of the page drafted here; the other sections are written at build from the sources above.
 
 > ## Why docket never creates a ticket by itself
 >
@@ -238,7 +270,7 @@ Docs and samples:
 - `docs/reference/config-keys.md`: drop the `change_created` row; replace "no effect yet" on the other four with what each does; rewrite the paragraph below the table, which says nothing acts on the switches.
 - `.docket.example.yml` and its embedded twin: drop `change_created` and rewrite the comment that says the switches name five events and are not acted on. If a frozen fixture copies this file, follow that fixture's own drift-guard remedy.
 - `docs/reference/skills-and-agents.md` and `docs/reference/glossary.md`: the `docket-update-ticket` entries say it posts "when you ask"; add the automatic case.
-- `docs/concepts/tickets.md` (new), its two index entries, and the two pointers to it (decision 9).
+- `docs/concepts/tickets.md` (new): the concepts page for ticket work, its two index entries, and the two pointers to it (decision 9).
 - Docs describe only how docket behaves now: no mention of the removed key or of what was planned. The new page explains why ticket creation is always on request as a standing position, not as history.
 
 Size budgets in `internal/repoguard/budgets_test.go` are raised for each grown file, with this change's note, per that table's convention.
@@ -252,7 +284,7 @@ Size budgets in `internal/repoguard/budgets_test.go` are raised for each grown f
   - each site's token matches its file per the table in decision 1.
   Key the scan on the invocation's shape, not on a list of spellings. `ticketEvents` is unexported, so the token checks belong in an `internal/app` test, beside the existing skill test for the ticket read; no production code is exported for this.
 - **Prose contracts.** Pin the convention's shared definition (the read, both silent cases, the direction) and the update skill's automatic rules (never asks, the one-line cases, private posts nothing, never retries, never touches the run). Update the existing contract rows that pin "only when the person asks" on `docket-update-ticket` and the "when you ask" doc entries in the same commit. Add an absent-clause assertion that the skill no longer says nothing runs on its own.
-- **The concepts page.** Add prose-contract rows for `docs/concepts/tickets.md`: one pinned clause for each of the two reasons (a person's action; no one right moment), one for the invariant that no setting creates a ticket, and the page's line in each index. Pin the two pointer sentences in `config-keys.md` and the glossary. The living-docs alignment guard already scans `docs/concepts`, so a change or PR citation on the page turns it red with no new test.
+- **The concepts page.** Add prose-contract rows for `docs/concepts/tickets.md`: one pinned clause for each of the two reasons (a person's action; no one right moment), one for the invariant that no setting creates a ticket, one for each of the three ways a change gets a ticket, one for each of the four event tokens, and the page's line in each index. These rows keep the page from losing a part; they cannot prove the page is accurate, so the builder checks each statement against the skills by reading, and the review does the same. Pin the two pointer sentences in `config-keys.md` and the glossary. The living-docs alignment guard already scans `docs/concepts`, so a change or PR citation on the page turns it red with no new test.
 - **Config.** `tickets.auto.change_created` is rejected as an unknown key; the four remaining switches resolve as before.
 - **Mutation-test every new guard**: remove a site, drop a `DIRECTED to:`, swap an event token, delete each pinned clause, and watch each turn red. Run with the test cache defeated.
 - The whole suite runs at the build gate.
@@ -282,7 +314,7 @@ No separate change is needed to revisit ADR-0162. If the live check in *Acceptan
 - The maintenance sweep and a stack root's descendants never get an automatic update.
 - `tickets.auto.change_created` no longer exists in the schema, the sample config, or the docs.
 - ADR-0162 keeps its `Accepted` status and carries a dated update note with the connector finding; the new ADR relates to it.
-- `docs/concepts/tickets.md` exists, is listed in both docs indexes, and explains in detail why docket never creates a ticket by itself: creating a ticket is a person's action, and there is no one right moment to create it (a stub is too early; a groomed change has its own problems). It keeps every point of the draft in decision 9, and `config-keys.md` and the glossary each point to it.
+- `docs/concepts/tickets.md` exists and is listed in both docs indexes. It explains how ticket work fits together (the link, the three ways a change gets a ticket, on-request and automatic updates, the four events, shared and private delivery, the connector, the settings, and what happens on failure), and every statement on it matches the skills and the binary as built. It also explains in detail why docket never creates a ticket by itself: creating a ticket is a person's action, and there is no one right moment to create it (a stub is too early; a groomed change has its own problems). It keeps every point of the draft in decision 9, and `config-keys.md` and the glossary each point to it.
 - The results list an **Important** live check, done by a person from a shared scratch repository against a sandbox ticket project, never from this repository:
   - with each switch on in turn, run the workflow and confirm the comment arrives with working links;
   - with the switch off, and with the switch on but no ticket, confirm nothing is posted and nothing is reported;
@@ -297,7 +329,8 @@ No separate change is needed to revisit ADR-0162. If the live check in *Acceptan
 - Mentions in automatic updates.
 - Syncing ticket status, assignee, or fields; rewriting a ticket's description.
 - Reordering docket-new-change's steps.
-- A how-to guide page for ticket work. The new concepts page explains what the ticket pieces are and why; it is not a walkthrough.
+- A how-to guide page for ticket work. The new concepts page explains what the ticket pieces are, how they fit together, and why; it is not a walkthrough.
+- Changing how linking, creating, importing, or on-request updates behave. The page describes them as they are.
 
 ## Left to the builder
 
@@ -305,7 +338,7 @@ No separate change is needed to revisit ADR-0162. If the live check in *Acceptan
 - Whether the automatic path sits in `docket-update-ticket/SKILL.md` or in a new reference file loaded only when a workflow invokes the skill. A reference file matches how the skill already splits shared and private delivery.
 - Where the docket-finalize-change site sits among its cleanup, integration-sync, and rebuild steps, as long as it follows closeout and its line reaches the final report.
 - The exact wording of report lines.
-- The concepts page's title, its wording, and whether its moving parts get a diagram, as long as every point of decision 9's draft survives. Which clauses the prose contracts pin.
+- The concepts page's title, its wording, the shape of its diagram, and the order of its moving parts, as long as every part in decision 9 is covered and every point of the drafted section survives. Which clauses the prose contracts pin.
 - The shape of the site-guard scan.
 
 ## What the code says today

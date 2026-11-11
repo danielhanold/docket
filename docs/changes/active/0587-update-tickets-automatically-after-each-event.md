@@ -53,7 +53,7 @@ Ticket creation stays on request. The `tickets.auto.change_created` switch plann
 - Creating a ticket is an action for a person, not for an agent, so automating it is usually the wrong approach.
 - There is no clear place for the trigger: a captured stub is not ready to be a ticket, and a groomed change with a full spec has its own problems. Supporting both was judged too complex for what it saves.
 
-Those reasons are documented in detail for users in a new concepts page, `docs/concepts/tickets.md`, which also explains what the ticket pieces are. The config-key reference and the glossary each point to it.
+A new concepts page, `docs/concepts/tickets.md`, explains how ticket work fits together: the link, the three ways a change gets a ticket, on-request and automatic updates, the four events, what goes with an update, the connector, and the settings. It also documents the two reasons above in detail. Today the user docs cover ticket work only in the reference tier. The config-key reference and the glossary each point to the page.
 
 No new operation is needed; the existing ticket read already returns the switch and the ticket state.
 
@@ -65,7 +65,8 @@ No new operation is needed; the existing ticket read already returns the switch 
 - In a private repository an automatic update posts nothing and reports one line.
 - A missing connector or failed post is one report line; the run's outcome is unchanged.
 - `tickets.auto.change_created` no longer exists in the schema, the sample config, or the docs.
-- The docs have a concepts page on tickets that explains in detail why docket never creates a ticket by itself: creating a ticket is a person's action, and there is no one right moment to create it. It is listed in both docs indexes.
+- The docs have a concepts page on tickets, listed in both docs indexes. It explains how ticket work fits together, and every statement on it matches the skills and the binary as built.
+- That page explains in detail why docket never creates a ticket by itself: creating a ticket is a person's action, and there is no one right moment to create it.
 - The results list an Important live check, done by a person from a shared scratch repository, never from this one.
 
 ## Out of scope
