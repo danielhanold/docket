@@ -15,7 +15,7 @@ discovered_from: []
 adrs: [19, 161, 162]
 spec: 'docs/superpowers/specs/2026-11-11-layer-the-tickets-config-keys-at-every-normal-level-not-just-design.md'
 plan: 'docs/superpowers/plans/2026-11-10-layer-the-tickets-config-keys-at-every-normal-level-not-just.md'
-results:
+results: 'docs/results/2026-11-10-layer-the-tickets-config-keys-at-every-normal-level-not-just-results.md'
 auto_groomable:
 hold:
 branch_prefix:
@@ -35,6 +35,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-11-11-layer-the-tickets-config-keys-at-every-normal-level-not-just-design.md](../../superpowers/specs/2026-11-11-layer-the-tickets-config-keys-at-every-normal-level-not-just-design.md) |
 | Plan | [2026-11-10-layer-the-tickets-config-keys-at-every-normal-level-not-just.md](../../superpowers/plans/2026-11-10-layer-the-tickets-config-keys-at-every-normal-level-not-just.md) |
+| Results | [2026-11-10-layer-the-tickets-config-keys-at-every-normal-level-not-just-results.md](../../results/2026-11-10-layer-the-tickets-config-keys-at-every-normal-level-not-just-results.md) |
 | ADRs | [ADR-0019](../../adrs/0019-global-config-fence-classification.md), [ADR-0161](../../adrs/0161-ticket-fields-are-three-flat-stored-scalars-and-issue-is-ret.md), [ADR-0162](../../adrs/0162-ticket-work-is-two-inline-skills-split-by-attended-linking-v.md) |
 <!-- docket:artifacts:end -->
 
