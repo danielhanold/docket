@@ -4,43 +4,54 @@
 
 # Layer the tickets.* config keys at every normal level
 
-Change #592, groomed 2026-11-10.
+Change #592, groomed 2026-11-10, revised 2026-11-10.
 
 ## Problem
 
-`internal/config/schema.go` declares all eight `tickets.*` keys (`provider`, `site`, `project`, and the five `auto.*` switches) with `scopeRepoOnly`. A value for any of them in the global config or `.docket.local.yml` is warned and ignored. Most other keys, such as `change_types` and `auto_groom`, use `scopeAny` and layer per field: repo-local > repo-committed > global > built-in.
+`internal/config/schema.go` declares nine `tickets.*` keys. One, `tickets.companion_skill`, already uses `scopeAny`. The other eight (`provider`, `site`, `project`, and the five `auto.*` switches) use `scopeRepoOnly`, so a value for any of them in the global config or `.docket.local.yml` is warned and ignored. Most other keys, such as `change_types` and `auto_groom`, use `scopeAny` and layer per field: repo-local > repo-committed > global > built-in.
 
-The schema comment gives the reason as "All belong to the repository". The repo-only set otherwise holds the repository-identity keys (`integration_branch`, `changes_dir`, `adrs_dir`, `results_dir`), where a machine-level override would make clones disagree about where records live (ADR-0019).
+The schema comment gives the reason as "They belong to the repository". The repo-only set otherwise holds the repository-identity keys (`integration_branch`, `changes_dir`, `adrs_dir`, `results_dir`), where a machine-level override would make clones disagree about where records live (ADR-0019). No tickets key has that property.
 
-## The argument to test
+## Decision
 
-For each key, ask whether a differing value across layers can make two clones of the same repo behave incompatibly. If not, repo-only is not protecting anything.
+All eight keys move to `scopeAny`, the same scope `companion_skill` already has. This was decided with the human at grooming, key by key:
 
-- `provider` and `site` name the ticket system. They are normally identical across every repo a person works in, so the global layer is the natural home. A wrong or missing value only changes which ticket system the interactive link and update skills suggest. It never changes where a record lives.
-- `project` is usually per-repo, so it belongs in the committed file, but a machine-local override is harmless for the same reason.
-- The `auto.*` switches decide whether docket acts on a linked ticket after an event. Two clones with different values would update tickets differently. That is a real difference, but it is also true of other behavior switches that already layer normally. The spec's job is to confirm this against how those switches are read.
+| Key | Why it can layer |
+|---|---|
+| `provider`, `site` | Usually the same ticket system for every repo a person works in, so the global config is their natural home. Only the `docket-link-ticket` skill reads them, through `diagnostic.config`, and it asks the person when one is empty. Nothing derives a record path, branch name, or other cross-clone value from them. |
+| `project` | Usually set per repo in `.docket.yml`, but a person whose repos all file into one project can set it once globally. Linking and creating a ticket is always attended, so a wrong project is caught before a ticket is created. |
+| `auto.change_created`, `auto.spec_written`, `auto.pr_opened`, `auto.pr_merged`, `auto.results_completed` | Same shape as `auto_groom`, which already layers. Today `ticket.context` only reports them, and nothing acts on them. A team that wants agreement commits the value in `.docket.yml`. A global value never outranks a committed one, so only the person's own `.docket.local.yml` can override the team's choice. |
 
-## Trace to do before changing anything
+## Unsetting a global value at the repo level
 
-1. Find every reader of `eff.Tickets.*` and confirm none uses the value to derive a record path, a branch name, or anything another clone must reproduce.
-2. Check the private-repository path: a private repository keeps its config in `.git/dckt/config.yml` and never reads `.docket.yml`. State what the global layer does there and test it.
-3. Check how `diagnostic.config` reports provenance for a key set in a machine layer.
-4. Find the docs and skill prose that say these values come from the repository config (`docket-link-ticket`, `docket-update-ticket`, config reference) and list them.
+Every `tickets.*` key defaults to empty (`""`) or `false`, and a value declared in a higher layer wins. So a repo cancels a global value by writing the default explicitly, in `.docket.yml` (for everyone) or `.docket.local.yml` (for this machine):
 
-## Decision rule
+```yaml
+tickets:
+  project: ""          # cancels a global project for this repo
+  auto:
+    pr_opened: false   # cancels a global true
+```
 
-- If the trace finds no reader that needs cross-clone agreement, switch all eight keys to `scopeAny`. This follows the rule that config keys behave uniformly unless a difference is justified.
-- If it finds one that does (most likely an `auto.*` switch), keep that key repo-only, switch the rest, and record the reason in the schema comment.
-- If it finds none of the keys can move safely, leave the schema as it is and record why in the change's results.
+`diagnostic.config` then reports the empty or `false` value with the repo layer as its source. This needs no new mechanism. It is documented in the config reference and in the `.docket.example.yml` comment.
+
+A bare `project:` (nothing after the colon) is a YAML null, not an empty string, and stays rejected. The rejection message for a string key that accepts an empty value names the fix: write `""` to clear the value. The hint goes in the shared string validator, so every such string key gets it, not just the tickets keys. Null is not newly accepted as "unset", which would make these keys read YAML differently from every other string key.
+
+## Trace to confirm at build
+
+1. Re-grep every reader of `eff.Tickets.*` (today: `internal/app/config.go` for `diagnostic.config`, `internal/app/ticket_context.go` for the `auto.*` switches, the `docket-link-ticket` skill) and confirm none needs cross-clone agreement. If a new reader appeared since grooming and does, stop and report rather than moving that key.
+2. Check the private-repository path: a private repository keeps its config in `.git/dckt/config.yml` and never reads `.docket.yml`. State what the global layer and `.docket.local.yml` do there, and test it.
+3. Confirm `diagnostic.config` reports provenance for a value from each machine layer, and for the explicit `""` / `false` cancel.
 
 ## Build
 
-- Change the scope in the schema table, and update the comment above the block to match.
-- Update the schema, decode, resolve, and defaults tests that enumerate the keys so each key has a case for global and `.docket.local.yml` layers, including precedence and provenance.
-- Add a case for the private-repository config path.
-- Update the prose contracts and skill text that describe where the values come from, and regenerate embedded assets after skill edits.
-- Fix the stale comment above the `tickets` block in `.docket.example.yml`: it says no docket command reads these settings yet, and that linking a change does not consult them. Rewrite it to describe how the settings are read today and which config layers they can come from.
+- Change the eight scopes in the schema table to `scopeAny`, and rewrite the comment above the block: the ticket settings layer like any other key.
+- Add the `""` hint to the rejection message for a null on a string key that accepts empty.
+- Update the schema, decode, resolve, and defaults tests that enumerate the keys so each of the eight has global and `.docket.local.yml` cases, including precedence, provenance, and a repo-level cancel of a global value (`""` for strings, `false` for switches). Add a test for the null rejection's hint, and a private-repository case.
+- `docs/reference/config-keys.md`: change the eight rows from `repo-only` to `any layer`; replace the stale paragraph under the table ("no docket command reads them yet …") with how the settings are read today, which layers they can come from, and how to cancel a global value.
+- `.docket.example.yml`: rewrite the stale comment above the `tickets` block the same way, including the cancel example.
+- Update any skill prose that says these values come only from the repository config (`docket-link-ticket`, `docket-update-ticket`), and regenerate embedded assets after skill edits.
 
 ## Out of scope
 
-Repository-identity keys, new ticket settings, new providers, and any new place to read ticket settings from.
+Repository-identity keys, new ticket settings, new providers, any new place to read ticket settings from, and accepting YAML null as "unset".
