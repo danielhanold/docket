@@ -43,6 +43,9 @@ type ticketInvocation struct {
 	rel, text string
 	tokens    []string
 	directed  bool
+	// follows reports whether the block points at the convention's shared
+	// definition, whose second step stays silent when the switch is off.
+	follows bool
 }
 
 var (
@@ -64,6 +67,10 @@ var (
 )
 
 const ticketDirectedMarker = "DIRECTED to:"
+
+// ticketDefinitionPointer is the clause that sends a site through the shared
+// definition. Without it a site would invoke the skill with the switch off.
+const ticketDefinitionPointer = "follow the convention's *Automatic ticket updates*"
 
 // ticketNegationLookback is how far before a match a negation may start.
 const ticketNegationLookback = 30
@@ -95,6 +102,7 @@ func scanTicketInvocations(files map[string]string) []ticketInvocation {
 				text:     block,
 				tokens:   tokens,
 				directed: strings.Contains(block, ticketDirectedMarker),
+				follows:  strings.Contains(block, ticketDefinitionPointer),
 			})
 		}
 	}
@@ -176,6 +184,13 @@ func TestTicketAutoUpdateSites(t *testing.T) {
 		if inv, ok := byRel["e.md"]; !ok || len(inv.tokens) != 0 {
 			t.Errorf("`--event <event>` must be an invocation with no token; got %+v (found %v)", inv, ok)
 		}
+		if byRel["a.md"].follows {
+			t.Errorf("a site without the definition pointer must not count as following it")
+		}
+		pointed := scanTicketInvocations(map[string]string{"g.md": "Then follow the convention's\n  *Automatic ticket updates* for `tickets.auto.pr_opened`; invoke `docket-update-ticket` **DIRECTED to:** post it."})
+		if len(pointed) != 1 || !pointed[0].follows {
+			t.Errorf("a hard-wrapped definition pointer must count as following it; got %+v", pointed)
+		}
 		// A negation of an earlier verb must not negate a later invocation.
 		mixed := scanTicketInvocations(map[string]string{"f.md": "Do not invoke it twice; invoke `docket-update-ticket` once."})
 		if len(mixed) != 1 {
@@ -204,6 +219,9 @@ func TestTicketAutoUpdateSites(t *testing.T) {
 		}
 		if !s.directed {
 			t.Errorf("%s: the site does not carry %q: %q", s.rel, ticketDirectedMarker, s.text)
+		}
+		if !s.follows {
+			t.Errorf("%s: the site does not carry %q, so it would post with the switch off: %q", s.rel, ticketDefinitionPointer, s.text)
 		}
 		if len(s.tokens) != 1 {
 			t.Errorf("%s: the site names %d event tokens %v, want exactly one", s.rel, len(s.tokens), s.tokens)
