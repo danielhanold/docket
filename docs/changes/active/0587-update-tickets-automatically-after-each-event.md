@@ -7,13 +7,13 @@ priority: 'medium'
 type: 'feat'
 deliverable: 'pr'
 created: '2026-11-09'
-updated: '2026-11-09'
-depends_on: [584, 585]
+updated: '2026-11-11'
+depends_on: [585]
 stacked_on:
-related: [581]
+related: [581, 588, 592]
 discovered_from: [581]
-adrs: []
-spec:
+adrs: [44, 162]
+spec: 'docs/superpowers/specs/2026-11-11-update-tickets-automatically-after-each-event-design.md'
 plan:
 results:
 auto_groomable:
@@ -28,24 +28,40 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-11-11-update-tickets-automatically-after-each-event-design.md](../../superpowers/specs/2026-11-11-update-tickets-automatically-after-each-event-design.md) |
+| ADRs | [ADR-0044](../../adrs/0044-autonomy-precedence-call-site-pre-specification.md), [ADR-0162](../../adrs/0162-ticket-work-is-two-inline-skills-split-by-attended-linking-v.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-Teams that want it should get updates without the engineer remembering to ask, and nothing at all when they do not.
+Teams that want it should get ticket updates without the engineer remembering to ask, and nothing at all when they do not. Today a change's ticket hears about a spec, an opened PR, a merge, or finished results only when someone asks for that update.
 
 ## What changes
 
-At each event the running workflow reads its switch; when on, it invokes the ticket skill with a call-site direction that nobody is there to ask. Off means nothing happens: no prompt, no report line. In a private repository (or when visibility is unknown) this change posts nothing and reports one line; change 588 lifts that. The sweep never posts; stacked descendants get nothing. Fixed by the spec: per-event switches only, failures never halt. Left to grooming: whether change-created's readiness check runs before or after `change.create`.
+Four config switches, each off by default, get their effect: `tickets.auto.spec_written`, `tickets.auto.pr_opened`, `tickets.auto.pr_merged`, and `tickets.auto.results_completed`. When one is on and the change already has a ticket, the workflow that just finished that step posts the update as a comment, without asking:
 
-**Acceptance criteria:** Each wiring site is guarded by a test; with every switch off no workflow output changes; results list an Important live check from a shared scratch repository.
+- docket-groom-next and docket-auto-groom, after a change's first spec lands;
+- docket-implement-next, after the PR opens, or after a results-only change completes;
+- docket-finalize-change, after a merged change is closed out.
 
-**Covers (581 spec):** decision 1 (automatic, off means nothing), decision 2 (automatic per event; sweep and stack fan-out exclusions), decision 4's automatic ticket at change created, decision 10's workflow wiring
+When the switch is off, or the change has no ticket, nothing happens: no prompt and no report line. A missing connector or a failed post costs one report line and never stops or fails the run. In a private repository an automatic update posts nothing and reports one line; change 588 lifts that. The maintenance sweep never posts, and when a stack root lands only the root's ticket is updated.
 
-**Likely touches:** call sites in docket-new-change (change created, spec written), docket-groom-next, docket-auto-groom, docket-implement-next (PR handoff and results-artifact ending), docket-finalize-change (after close-out); `docket-update-ticket`'s unattended rules for a shared repository
+Ticket creation stays on request. The `tickets.auto.change_created` switch planned by change 581 is removed: a captured stub is not ready to be a ticket, and creating one later was judged too complex for what it saves. This was decided at grooming and departs from 581's plan.
 
-**Design source:** this change is position 6 of the ticket-integration split planned by change 581. The settled design lives in 581's spec, `docs/superpowers/specs/2026-11-09-split-the-ticket-integration-design-into-buildable-changes-design.md`, and its plan in `docs/results/2026-11-09-split-the-ticket-integration-design-into-buildable-changes-results.md` (the entry for position 6, *Coverage check*, *ADRs*, and *Trace notes*). Binding sections: Decisions 1 (automatic updates; off means nothing), 2 (Events — automatic per event, sweep and stack fan-out exclusions), 4 (automatic ticket at change created), and 10 (Layering — workflow wiring), plus *Vocabulary*, *Out of scope*, and *What the code says today*; and the results' answer (a) on what produces `stacked-merged`. Grooming must read those sections and **restate the settled decisions this change carries in its own spec** — do not merely link to them — so the build needs nothing from change 581. Anything 581 marks as fixed is not reopened; only the points it leaves to grooming are decided here.
+No new operation is needed; the existing ticket read already returns the switch and the ticket state.
+
+## Acceptance criteria
+
+- With a switch on and a ticket linked, each of the five wiring sites directs the update skill to post that event's update; a test pins those five sites and no others.
+- With every switch off, no workflow posts, asks, or reports anything about tickets.
+- With a switch on and no ticket, nothing is posted and nothing is reported.
+- In a private repository an automatic update posts nothing and reports one line.
+- A missing connector or failed post is one report line; the run's outcome is unchanged.
+- `tickets.auto.change_created` no longer exists in the schema, the sample config, or the docs.
+- The results list an Important live check, done by a person from a shared scratch repository, never from this one.
 
 ## Out of scope
 
-Unattended private posting (change 588); confirmation prompts; updates for revisions, blockers, or kills.
+Automatic ticket creation, at change creation, at grooming, or anywhere else; automatic updates in a private repository (change 588); confirmation prompts, queues, and retries; automatic updates for revisions, blockers, kills, or changes the sweep closed out; updates to stacked descendants' tickets.
