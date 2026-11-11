@@ -25,7 +25,7 @@ ticket_provider:
 ticket_id:
 ticket_url:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -52,3 +52,9 @@ A value for each of the eight keys set in the global config or .docket.local.yml
 ## Out of scope
 
 Changing the repository-identity keys (integration_branch, changes_dir, adrs_dir, results_dir), which stay repo-only. Any new ticket setting or provider support. Reading ticket settings from anywhere other than the existing config layers.
+
+## Reconcile log
+
+### 2026-11-11
+
+Unchanged against main b3bc2ae69. Trace step 1 re-run: readers of eff.Tickets are still only internal/app/config.go (diagnostic.config) and internal/app/ticket_context.go (auto switches); none needs cross-clone agreement.
