@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0587 — Update tickets automatically after each event](../changes/active/0587-update-tickets-automatically-after-each-event.md)**
+> ↩ **[Change 0587 — Update tickets automatically after each event](../changes/archive/2026-11-11-0587-update-tickets-automatically-after-each-event.md)**
 <!-- docket:backlink:end -->
 
 # Update tickets automatically after each event — results
