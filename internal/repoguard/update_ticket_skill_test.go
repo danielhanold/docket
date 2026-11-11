@@ -16,6 +16,7 @@ func TestUpdateTicketSkillIsInline(t *testing.T) {
 	const name = "docket-update-ticket"
 	assertInlineSkill(t, name, []string{
 		"post an update or comment about a change to its ticket",
+		"or when a docket workflow invokes it after an event whose `tickets.auto` switch is on",
 		"not for creating or linking a ticket",
 	})
 	body := readRepoFile(t, "skills/"+name+"/SKILL.md")

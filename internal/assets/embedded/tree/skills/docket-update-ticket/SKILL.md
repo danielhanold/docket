@@ -1,6 +1,6 @@
 ---
 name: docket-update-ticket
-description: 'Use when the person asks to post an update or comment about a change to its ticket (`update CLOUD-123 now that the PR is open`, `tell the ticket the spec for #12 is written`, `let PROJ-9 know #40 was killed`); not for creating or linking a ticket.'
+description: 'Use when the person asks to post an update or comment about a change to its ticket (`update CLOUD-123 now that the PR is open`, `tell the ticket the spec for #12 is written`, `let PROJ-9 know #40 was killed`), or when a docket workflow invokes it after an event whose `tickets.auto` switch is on; not for creating or linking a ticket.'
 ---
 
 # docket-update-ticket

@@ -113,6 +113,7 @@ var autoTicketContracts = []autoTicketContract{
 			"retry uploads after a timeout",
 			"agents report on tickets, and people create them",
 			"an automatic update posts nothing and reports one line",
+			"ADR-0163 — Automatic ticket updates are per-event switches; ticket creation is never automatic.",
 		},
 		absent: []string{"change_created", "was once planned", "dropped"}},
 	{file: "docs/concepts/README.md",
@@ -123,7 +124,11 @@ var autoTicketContracts = []autoTicketContract{
 		present: []string{
 			"Creating a ticket has no switch: it is always on request",
 			"../concepts/tickets.md#why-docket-never-creates-a-ticket-by-itself",
-		}},
+			"Off (the default) means nothing is posted or reported, unless docket's own read of the change fails",
+		},
+		absent: []string{"means nothing is posted or reported, and a switch"}},
+	{file: ".docket.example.yml",
+		present: []string{"off means nothing is posted or reported, unless docket's own"}},
 	{file: "docs/reference/glossary.md",
 		present: []string{
 			"Docket never creates a ticket by itself",
@@ -176,7 +181,7 @@ func TestAutoTicketUpdateContracts(t *testing.T) {
 		}
 	})
 
-	const floor = 72
+	const floor = 76
 	checks := 0
 	for _, c := range autoTicketContracts {
 		body := readRepoFile(t, c.file)

@@ -268,7 +268,8 @@ change_types: [chore, docs, feat, fix, refactor, perf]
 # The four `auto` switches name events: a change's spec is written, its pull request opens, its
 # pull request merges, or its results are complete. When one is on and the change has a ticket,
 # the workflow that just finished that event posts the update to the ticket as a comment, without
-# asking. All are off by default, and off means nothing is posted or reported.
+# asking. All are off by default, and off means nothing is posted or reported, unless docket's own
+# read of the change fails.
 #
 # Like most settings, these can be set in any layer. `provider` and `site` are usually the same for
 # every repository, so the global config suits them. A repository cancels a global value by

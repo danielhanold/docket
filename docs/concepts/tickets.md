@@ -253,6 +253,8 @@ switches keep the ticket current without you.
 
 ## Decided in
 
+- ADR-0163 — Automatic ticket updates are per-event switches; ticket creation
+  is never automatic.
 - ADR-0162 — made ticket work two skills that run inline and post through
   the running agent's own connector tools: `docket-link-ticket` for linking,
   creating, and importing, always with a person present, and
