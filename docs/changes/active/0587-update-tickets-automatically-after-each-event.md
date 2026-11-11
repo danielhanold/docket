@@ -15,7 +15,7 @@ discovered_from: [581]
 adrs: [44, 162, 163]
 spec: 'docs/superpowers/specs/2026-11-11-update-tickets-automatically-after-each-event-design.md'
 plan: 'docs/superpowers/plans/2026-11-11-update-tickets-automatically-after-each-event.md'
-results:
+results: 'docs/results/2026-11-11-update-tickets-automatically-after-each-event-results.md'
 auto_groomable:
 hold:
 branch_prefix:
@@ -32,6 +32,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-11-11-update-tickets-automatically-after-each-event-design.md](../../superpowers/specs/2026-11-11-update-tickets-automatically-after-each-event-design.md) |
 | Plan | [2026-11-11-update-tickets-automatically-after-each-event.md](../../superpowers/plans/2026-11-11-update-tickets-automatically-after-each-event.md) |
+| Results | [2026-11-11-update-tickets-automatically-after-each-event-results.md](../../results/2026-11-11-update-tickets-automatically-after-each-event-results.md) |
 | ADRs | [ADR-0044](../../adrs/0044-autonomy-precedence-call-site-pre-specification.md), [ADR-0162](../../adrs/0162-ticket-work-is-two-inline-skills-split-by-attended-linking-v.md), [ADR-0163](../../adrs/0163-automatic-ticket-updates-are-per-event-switches-ticket-creat.md) |
 <!-- docket:artifacts:end -->
 
