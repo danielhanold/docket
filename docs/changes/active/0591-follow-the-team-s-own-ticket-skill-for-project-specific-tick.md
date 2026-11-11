@@ -2,7 +2,7 @@
 id: 591
 slug: 'follow-the-team-s-own-ticket-skill-for-project-specific-tick'
 title: 'Follow a companion skill when creating a ticket'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'feat'
 deliverable: 'pr'
@@ -19,7 +19,7 @@ results:
 auto_groomable:
 hold:
 branch_prefix:
-branch:
+branch: 'feat/follow-the-team-s-own-ticket-skill-for-project-specific-tick'
 pr:
 ticket_provider:
 ticket_id:

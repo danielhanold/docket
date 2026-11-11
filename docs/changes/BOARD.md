@@ -1,13 +1,18 @@
 # Backlog
 
-**592 changes** — 🟣 2 groomed · 🟡 5 proposed · ⚪ 15 deferred · ✅ 425 done · 🗑️ 145 killed
+**592 changes** — 🟢 1 in progress · 🟣 1 groomed · 🟡 5 proposed · ⚪ 15 deferred · ✅ 425 done · 🗑️ 145 killed
 
-## 🟣 Groomed (2)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch | State |
+|---|-------|----------|------|------|--------|-------|
+| [0591](active/0591-follow-the-team-s-own-ticket-skill-for-project-specific-tick.md) | Follow a companion skill when creating a ticket | `medium` | `feat` | [spec](../superpowers/specs/2026-11-11-follow-the-team-s-own-ticket-skill-for-project-specific-tick-design.md) | `feat/follow-the-team-s-own-ticket-skill-for-project-specific-tick` | building |
+
+## 🟣 Groomed (1)
 
 | # | Title | Priority | Type | Spec | Readiness |
 |---|-------|----------|------|------|-----------|
 | [0592](active/0592-layer-the-tickets-config-keys-at-every-normal-level-not-just.md) | Layer the tickets.* config keys at every normal level, not just the repo | `medium` | `refactor` | [spec](../superpowers/specs/2026-11-11-layer-the-tickets-config-keys-at-every-normal-level-not-just-design.md) | build-ready |
-| [0591](active/0591-follow-the-team-s-own-ticket-skill-for-project-specific-tick.md) | Follow a companion skill when creating a ticket | `medium` | `feat` | [spec](../superpowers/specs/2026-11-11-follow-the-team-s-own-ticket-skill-for-project-specific-tick-design.md) | build-ready |
 
 ## 🟡 Proposed (5)
 
