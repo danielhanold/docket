@@ -966,3 +966,33 @@ func TestConfigDiagnosticsTicketsSurface(t *testing.T) {
 		}
 	}
 }
+
+// TestConfigDiagnosticsTicketsMachineLayers pins the provenance DiagnosticConfig
+// reports for ticket settings declared in the machine layers, and for the
+// explicit ""/false a higher layer writes to cancel a global value.
+func TestConfigDiagnosticsTicketsMachineLayers(t *testing.T) {
+	src := []config.Source{
+		{Layer: config.LayerGlobal, Name: "/home/u/.config/docket/config.yml", Data: []byte(
+			"tickets:\n  provider: jira\n  project: CLOUD\n  auto:\n    pr_opened: true\n")},
+		{Layer: config.LayerRepository, Name: ".docket.yml", Data: []byte("tickets:\n  project: \"\"\n")},
+		{Layer: config.LayerRepositoryLocal, Name: ".docket.local.yml", Data: []byte(
+			"tickets:\n  auto:\n    pr_opened: false\n  site: tickets.example.com\n")},
+	}
+	r := DiagnosticConfig(src, mainCtx(), false)
+	text := r.HumanText()
+	for _, want := range []string{
+		"tickets.provider = jira  [global /home/u/.config/docket/config.yml:2]",
+		"tickets.project = (unset)  [repository .docket.yml:2]",
+		"tickets.site = tickets.example.com  [repository-local .docket.local.yml:4]",
+		"tickets.auto.pr_opened = false  [repository-local .docket.local.yml:3]",
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("inspection lacks %q:\n%s", want, text)
+		}
+	}
+	for _, d := range r.Diagnostics {
+		if d.Code == config.CodeSharedSettingIgnored {
+			t.Errorf("unexpected %s diagnostic for %s", d.Code, d.Path)
+		}
+	}
+}

@@ -383,33 +383,33 @@ func buildRegistry() []pathSpec {
 			})},
 
 		// The ticket settings: which ticket system a repository links to, where
-		// new tickets go, and the per-event automation switches. They belong to
-		// the repository, so a machine layer's declaration is ignored with a
-		// warning. The one exception is companion_skill, which names the
-		// person's own tooling (a skill usually installed for the user, in every
-		// repository) and so is set at any layer.
+		// new tickets go, the person's companion skill, and the per-event
+		// automation switches. They layer like any other key, because nothing
+		// derives a record path, branch, or other value every clone must agree
+		// on from them. A repository cancels a global value by declaring the
+		// default ("" or false).
 		{path: "tickets.provider", kind: kindString, def: "",
-			merge: mergeScalar, scope: scopeRepoOnly, disp: dispSupported,
+			merge: mergeScalar, scope: scopeAny, disp: dispSupported,
 			validate: singleLineStringLeaf()},
 		{path: "tickets.site", kind: kindString, def: "",
-			merge: mergeScalar, scope: scopeRepoOnly, disp: dispSupported,
+			merge: mergeScalar, scope: scopeAny, disp: dispSupported,
 			validate: singleLineStringLeaf()},
 		{path: "tickets.project", kind: kindString, def: "",
-			merge: mergeScalar, scope: scopeRepoOnly, disp: dispSupported,
+			merge: mergeScalar, scope: scopeAny, disp: dispSupported,
 			validate: singleLineStringLeaf()},
 		{path: "tickets.companion_skill", kind: kindString, def: "",
 			merge: mergeScalar, scope: scopeAny, disp: dispSupported,
 			validate: singleLineStringLeaf()},
 		{path: "tickets.auto.change_created", kind: kindBool, def: false,
-			merge: mergeScalar, scope: scopeRepoOnly, disp: dispSupported, validate: boolLeaf()},
+			merge: mergeScalar, scope: scopeAny, disp: dispSupported, validate: boolLeaf()},
 		{path: "tickets.auto.spec_written", kind: kindBool, def: false,
-			merge: mergeScalar, scope: scopeRepoOnly, disp: dispSupported, validate: boolLeaf()},
+			merge: mergeScalar, scope: scopeAny, disp: dispSupported, validate: boolLeaf()},
 		{path: "tickets.auto.pr_opened", kind: kindBool, def: false,
-			merge: mergeScalar, scope: scopeRepoOnly, disp: dispSupported, validate: boolLeaf()},
+			merge: mergeScalar, scope: scopeAny, disp: dispSupported, validate: boolLeaf()},
 		{path: "tickets.auto.pr_merged", kind: kindBool, def: false,
-			merge: mergeScalar, scope: scopeRepoOnly, disp: dispSupported, validate: boolLeaf()},
+			merge: mergeScalar, scope: scopeAny, disp: dispSupported, validate: boolLeaf()},
 		{path: "tickets.auto.results_completed", kind: kindBool, def: false,
-			merge: mergeScalar, scope: scopeRepoOnly, disp: dispSupported, validate: boolLeaf()},
+			merge: mergeScalar, scope: scopeAny, disp: dispSupported, validate: boolLeaf()},
 
 		// 25-26: auto capture. The subset check against effective change_types
 		// cannot run here — it is cross-leaf, so resolution owns it.

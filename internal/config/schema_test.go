@@ -87,9 +87,6 @@ func TestRegistryRepoOnlySet(t *testing.T) {
 		"integration_branch", "changes_dir", "adrs_dir",
 		"results_dir", "github_project",
 		"terminal_publish",
-		"tickets.provider", "tickets.site", "tickets.project",
-		"tickets.auto.change_created", "tickets.auto.spec_written", "tickets.auto.pr_opened",
-		"tickets.auto.pr_merged", "tickets.auto.results_completed",
 	}
 	wantLocalOnly := []string{"runtime.bash"}
 
