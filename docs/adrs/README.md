@@ -144,6 +144,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0160](0160-no-claim-lease-and-no-reclaim-stranded-runs-recover-only-by.md) — No claim lease and no reclaim — stranded runs recover only by resume-by-id (Accepted) ← change #575 → supersedes ADR-0159 · relates to ADR-0059, ADR-0084, ADR-0101
 - [ADR-0161](0161-ticket-fields-are-three-flat-stored-scalars-and-issue-is-ret.md) — Ticket fields are three flat stored scalars, and `issue:` is retired (Accepted) ← change #583 · relates to ADR-0071, ADR-0019
 - [ADR-0162](0162-ticket-work-is-two-inline-skills-split-by-attended-linking-v.md) — Ticket work is two inline skills, split by attended linking versus updating (Accepted) ← change #584 · relates to ADR-0161, ADR-0044
+- [ADR-0163](0163-automatic-ticket-updates-are-per-event-switches-ticket-creat.md) — Automatic ticket updates are per-event switches; ticket creation is never automatic (Accepted) ← change #587 · relates to ADR-0044, ADR-0162
 
 ## Superseded / Reversed
 
