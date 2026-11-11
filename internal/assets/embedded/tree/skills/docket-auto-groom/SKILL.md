@@ -54,11 +54,15 @@ Dispatch the dedicated **`docket-auto-groom-critic`** subagent (foreground, at t
 
 ### Step 5 — The outcome lands (no separate board pass)
 
-Every exit's Step-4 `change.groom` operation is the whole write — it re-checks the pinned `revision` and commits the record, any spec, the `## Artifacts` block, and the inline board in one metadata commit pushed under an exact-lease push, so there is **no separate Board pass** and no hand-staged commit. On a `contended` refusal it writes nothing: re-sync (re-run the `repository.prepare` operation), re-read the stub's `path` + `revision` from the `status` operation, and if it is no longer auto-groomable (groomed, killed, claimed, or opted out) DISCARD this iteration's draft (discard the draft from scratch space) and move on; otherwise re-author and retry. Return to step 1.
+Every exit's Step-4 `change.groom` operation is the whole write — it re-checks the pinned `revision` and commits the record, any spec, the `## Artifacts` block, and the inline board in one metadata commit pushed under an exact-lease push, so there is **no separate Board pass** and no hand-staged commit. On a `contended` refusal it writes nothing: re-sync (re-run the `repository.prepare` operation), re-read the stub's `path` + `revision` from the `status` operation, and if it is no longer auto-groomable (groomed, killed, claimed, or opted out) DISCARD this iteration's draft (discard the draft from scratch space) and move on; otherwise re-author and retry.
+
+**Ticket update.** After a spec exit's transaction lands, before step 1 selects the next stub, follow the convention's *Automatic ticket updates* for `tickets.auto.spec_written`; at its third step, invoke `docket-update-ticket` **DIRECTED to:** post the spec-written update for this change as an automatic update; nobody is present, so anything the skill would ask is answered by posting nothing and reporting one line; then return here. An abstain never posts.
+
+Return to step 1.
 
 ### Step 6 — Report
 
-Summarize the drain: groomed N, abstained K — each abstain with its one-line reason — plus each change it held and anything skipped to a lost race. STOP. Grooming never implements; the build-ready output is `docket-implement-next`'s queue.
+Summarize the drain: groomed N, abstained K — each abstain with its one-line reason — plus each change it held, anything skipped to a lost race, and each ticket-update line. STOP. Grooming never implements; the build-ready output is `docket-implement-next`'s queue.
 
 ## Termination & concurrency
 

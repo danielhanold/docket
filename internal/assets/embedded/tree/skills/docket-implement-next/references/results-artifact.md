@@ -72,5 +72,12 @@ and how its findings ended.
    left in the worktree, commits on the branch) goes into the run report; it **never halts the run
    and never undoes the completion**.
 
+**Ticket update.** After `change.complete` returns `completed` or `already-completed`, follow the
+convention's *Automatic ticket updates* for `tickets.auto.results_completed`; at its third step,
+invoke `docket-update-ticket` **DIRECTED to:** post the results-completed update for this change
+as an automatic update; nobody is present, so anything the skill would ask is answered by posting
+nothing and reporting one line; then return here. The run still ends `advanced`, and the line goes
+in the final report.
+
 End the run `advanced`. The final report names the results path and the cleanup disposition, plus
 the usual skipped changes and follow-up work with their backlog verdicts.

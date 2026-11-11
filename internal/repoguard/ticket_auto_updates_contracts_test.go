@@ -18,7 +18,9 @@ type autoTicketContract struct {
 // autoTicketContracts is the automatic ticket-update path: docket-update-ticket
 // runs when a workflow invokes it after an event whose tickets.auto switch is
 // on, and its references/automatic.md replaces every point where it would ask
-// or wait.
+// or wait. The convention's *Automatic ticket updates* shared definition and
+// the five workflow sites are pinned here too; which files hold a site is
+// derived and checked by TestTicketAutoUpdateSites in internal/app.
 var autoTicketContracts = []autoTicketContract{
 	{file: "skills/docket-update-ticket/SKILL.md",
 		present: []string{
@@ -44,6 +46,42 @@ var autoTicketContracts = []autoTicketContract{
 			"no halt, no blocked marker, no changed disposition, and no metadata write",
 			"A duplicate comment is acceptable and is deleted by hand.",
 			"Never load `references/private.md` on this path.",
+		}},
+	{file: "skills/docket-convention/SKILL.md",
+		present: []string{
+			"### Automatic ticket updates (shared definition)",
+			"with `--id <id> --event <event> --json`",
+			"when `context.event.switch` is `false` or `context.ticket.state` is `not-linked`",
+			"no post, no prompt, no report line",
+			"Ticket update for #<id> not checked: <reason>",
+			"never changes a run's disposition, writes a halt or blocked marker, or stops a later step",
+			"A replayed success posts like a first success",
+			"when a stack root lands only the root's ticket is updated",
+		}},
+	{file: "skills/docket-groom-next/SKILL.md",
+		present: []string{
+			"the switch is the consent, so nothing is asked",
+			"Kill, defer, revise, and re-enable never post.",
+		}},
+	{file: "skills/docket-auto-groom/SKILL.md",
+		present: []string{
+			"before step 1 selects the next stub",
+			"An abstain never posts.",
+		}},
+	{file: "skills/docket-implement-next/SKILL.md",
+		present: []string{
+			"(a retry's earlier applied outcome included)",
+			"The run's disposition is `advanced` whatever the update's outcome",
+		}},
+	{file: "skills/docket-implement-next/references/results-artifact.md",
+		present: []string{
+			"After `change.complete` returns `completed` or `already-completed`",
+		}},
+	{file: "skills/docket-finalize-change/SKILL.md",
+		present: []string{
+			"never for a `root-archived` result's `carried_ids`",
+			"never after `contended`, `blocked`, or `unknown`",
+			"`already-closed-out` for a change this run closed out",
 		}},
 }
 
@@ -86,7 +124,7 @@ func TestAutoTicketUpdateContracts(t *testing.T) {
 		}
 	})
 
-	const floor = 17
+	const floor = 35
 	checks := 0
 	for _, c := range autoTicketContracts {
 		body := readRepoFile(t, c.file)
