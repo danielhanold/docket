@@ -338,3 +338,39 @@ func TestSplitOfFoldDeclaresTheHandFormattedLeaves(t *testing.T) {
 		t.Errorf("SameConfigLeaves(hand, split) = %v, %v; want true\nsplit:\n%s", same, err, committed)
 	}
 }
+
+// TestFoldPrivateConfigCarriesLocalTicketsKeys: ticket settings layer at any
+// level, so going private carries a ticket leaf from .docket.local.yml into the
+// private config rather than dropping it, and going shared routes it back to
+// the local file.
+func TestFoldPrivateConfigCarriesLocalTicketsKeys(t *testing.T) {
+	committedIn := []byte("tickets:\n  provider: jira\n")
+	localIn := []byte("tickets:\n  project: OPS\n  auto:\n    pr_opened: true\n")
+	paths := []string{"tickets.provider", "tickets.project", "tickets.auto.pr_opened"}
+
+	folded, dropped, err := FoldPrivateConfig(committedIn, localIn, repoOnlyForTest())
+	if err != nil {
+		t.Fatalf("FoldPrivateConfig: %v", err)
+	}
+	if len(dropped) != 0 {
+		t.Errorf("dropped = %v, want none", dropped)
+	}
+	want := map[string]string{"tickets.provider": "jira", "tickets.project": "OPS", "tickets.auto.pr_opened": "true"}
+	if got := leafValues(t, folded, paths...); !reflect.DeepEqual(got, want) {
+		t.Errorf("folded leaves = %v, want %v\n%s", got, want, folded)
+	}
+	mustResolve(t, folded, nil)
+
+	committed, local, err := SplitPrivateConfig(folded, localIn, repoOnlyForTest())
+	if err != nil {
+		t.Fatalf("SplitPrivateConfig: %v", err)
+	}
+	if got, wantC := leafValues(t, committed, paths...), map[string]string{"tickets.provider": "jira"}; !reflect.DeepEqual(got, wantC) {
+		t.Errorf("committed leaves = %v, want %v\n%s", got, wantC, committed)
+	}
+	wantL := map[string]string{"tickets.project": "OPS", "tickets.auto.pr_opened": "true"}
+	if got := leafValues(t, local, paths...); !reflect.DeepEqual(got, wantL) {
+		t.Errorf("local leaves = %v, want %v\n%s", got, wantL, local)
+	}
+	mustResolve(t, committed, local)
+}

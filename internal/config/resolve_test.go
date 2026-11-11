@@ -637,58 +637,6 @@ func guardCases() []guardCase {
 		{"github_project", "github_project: {owner: acme, number: 7}\n", "github_project: auto\n",
 			githubProject{Owner: "acme", Number: 7}},
 		{"terminal_publish", "terminal_publish: true\n", "terminal_publish: false\n", true},
-		{"tickets.provider", "tickets:\n  provider: jira\n", "tickets:\n  provider: linear\n", "jira"},
-		{"tickets.site", "tickets:\n  site: tickets.example.com\n", "tickets:\n  site: other.example.com\n", "tickets.example.com"},
-		{"tickets.project", "tickets:\n  project: CLOUD\n", "tickets:\n  project: OPS\n", "CLOUD"},
-		{"tickets.auto.change_created", "tickets:\n  auto: {change_created: true}\n", "tickets:\n  auto: {change_created: false}\n", true},
-		{"tickets.auto.spec_written", "tickets:\n  auto: {spec_written: true}\n", "tickets:\n  auto: {spec_written: false}\n", true},
-		{"tickets.auto.pr_opened", "tickets:\n  auto: {pr_opened: true}\n", "tickets:\n  auto: {pr_opened: false}\n", true},
-		{"tickets.auto.pr_merged", "tickets:\n  auto: {pr_merged: true}\n", "tickets:\n  auto: {pr_merged: false}\n", true},
-		{"tickets.auto.results_completed", "tickets:\n  auto: {results_completed: true}\n", "tickets:\n  auto: {results_completed: false}\n", true},
-	}
-}
-
-// TestTicketsKeysRepoOnly: the ticket settings belong to the repository. A
-// machine layer (global or repository-local) declaring one is warned about
-// per key and leaves the built-in value in force; the committed layer's
-// declaration resolves with repository provenance and blocks nothing.
-func TestTicketsKeysRepoOnly(t *testing.T) {
-	const doc = "tickets:\n  provider: jira\n  auto:\n    pr_opened: true\n"
-	for _, build := range []func(string) Source{srcG, srcL} {
-		src := build(doc)
-		t.Run(string(src.Layer), func(t *testing.T) {
-			snap := mustSnapshot(t, src)
-			ignored := diagPathSet(snap, CodeSharedSettingIgnored)
-			for _, p := range []string{"tickets.provider", "tickets.auto.pr_opened"} {
-				if !ignored[p] {
-					t.Errorf("%s declared in the %s layer produced no shared-setting-ignored warning", p, src.Layer)
-				}
-			}
-			for _, d := range snap.Diagnostics {
-				if d.Code == CodeSharedSettingIgnored && d.Severity != SeverityWarning {
-					t.Errorf("%s: severity %q, want warning", d.Path, d.Severity)
-				}
-			}
-			eff := snap.Effective
-			if eff.Tickets.Provider.Value != "" || eff.Tickets.Provider.Explicit {
-				t.Errorf("tickets.provider = %q (explicit %v), want the built-in \"\"", eff.Tickets.Provider.Value, eff.Tickets.Provider.Explicit)
-			}
-			if eff.Tickets.Auto.PROpened.Value || eff.Tickets.Auto.PROpened.Explicit {
-				t.Errorf("tickets.auto.pr_opened = %v (explicit %v), want the built-in false", eff.Tickets.Auto.PROpened.Value, eff.Tickets.Auto.PROpened.Explicit)
-			}
-		})
-	}
-
-	snap := mustSnapshot(t, srcR(doc))
-	eff := snap.Effective
-	if eff.Tickets.Provider.Value != "jira" || eff.Tickets.Provider.Provenance.Layer != LayerRepository {
-		t.Errorf("tickets.provider = %q from %q, want jira from the repository layer", eff.Tickets.Provider.Value, eff.Tickets.Provider.Provenance.Layer)
-	}
-	if !eff.Tickets.Auto.PROpened.Value || eff.Tickets.Auto.PROpened.Provenance.Layer != LayerRepository {
-		t.Errorf("tickets.auto.pr_opened = %v from %q, want true from the repository layer", eff.Tickets.Auto.PROpened.Value, eff.Tickets.Auto.PROpened.Provenance.Layer)
-	}
-	if !PreflightMutation(snap).Allowed {
-		t.Errorf("preflight blocked a repository declaring ticket settings: %v", blockerPaths(snap))
 	}
 }
 
@@ -1521,50 +1469,6 @@ func TestOpenArtifactsIsAnOrdinaryLayeredKey(t *testing.T) {
 	}
 }
 
-// TestTicketsCompanionSkillAnyLayer pins tickets.companion_skill as the one
-// ticket leaf settable at any layer (change 0591): it names the person's own
-// tooling, so a global or local declaration is honoured with ordinary
-// precedence and never draws the shared-setting warning its repo-only
-// siblings get, even when declared in the same block.
-func TestTicketsCompanionSkillAnyLayer(t *testing.T) {
-	doc := func(v string) string { return "tickets:\n  companion_skill: " + v + "\n" }
-	if v := mustSnapshot(t).Effective.Tickets.CompanionSkill; v.Value != "" || v.Provenance.Layer != LayerBuiltIn || v.Explicit {
-		t.Fatalf("default = %+v, want non-explicit built-in empty", v)
-	}
-	for _, tc := range []struct {
-		name    string
-		sources []Source
-		want    string
-		layer   LayerKind
-	}{
-		{"global", []Source{srcG(doc("a"))}, "a", LayerGlobal},
-		{"local", []Source{srcL(doc("a"))}, "a", LayerRepositoryLocal},
-		{"repository over global", []Source{srcG(doc("a")), srcR(doc("b"))}, "b", LayerRepository},
-		{"local over repository", []Source{srcR(doc("b")), srcL(doc("c"))}, "c", LayerRepositoryLocal},
-		{"local over global", []Source{srcG(doc("a")), srcL(doc("c"))}, "c", LayerRepositoryLocal},
-	} {
-		snap := mustSnapshot(t, tc.sources...)
-		if v := snap.Effective.Tickets.CompanionSkill; v.Value != tc.want || v.Provenance.Layer != tc.layer || !v.Explicit {
-			t.Errorf("%s: companion_skill = %+v, want explicit %q from %q", tc.name, v, tc.want, tc.layer)
-		}
-		if diagPathSet(snap, CodeSharedSettingIgnored)["tickets.companion_skill"] {
-			t.Errorf("%s: companion_skill drew %s", tc.name, CodeSharedSettingIgnored)
-		}
-	}
-
-	snap := mustSnapshot(t, srcG("tickets:\n  provider: jira\n  companion_skill: team-tickets\n"))
-	ignored := diagPathSet(snap, CodeSharedSettingIgnored)
-	if !ignored["tickets.provider"] || snap.Effective.Tickets.Provider.Value != "" {
-		t.Errorf("mixed block: provider = %+v, ignored=%v; want the global provider warned about and dropped", snap.Effective.Tickets.Provider, ignored)
-	}
-	if ignored["tickets.companion_skill"] {
-		t.Errorf("mixed block: companion_skill drew %s", CodeSharedSettingIgnored)
-	}
-	if v := snap.Effective.Tickets.CompanionSkill; v.Value != "team-tickets" || v.Provenance.Layer != LayerGlobal || !v.Explicit {
-		t.Errorf("mixed block: companion_skill = %+v, want explicit team-tickets from global", v)
-	}
-}
-
 // The shipped implement-next TTL obeys the same per-field layering as model and
 // effort: a model-only override keeps it, and a global `auto` or `5m` replaces it.
 func TestAgentsShippedCacheTTLLayering(t *testing.T) {
@@ -1584,4 +1488,101 @@ func TestAgentsShippedCacheTTLLayering(t *testing.T) {
 			t.Errorf("cache_ttl %s: got %+v, want explicit global %q", tc.in, got, tc.want)
 		}
 	}
+}
+
+// ticketsDoc renders one tickets leaf as a YAML document: tickets.X as a
+// direct child of tickets, tickets.auto.X under the auto block.
+func ticketsDoc(path, literal string) string {
+	leaf := strings.TrimPrefix(path, "tickets.")
+	if ev, ok := strings.CutPrefix(leaf, "auto."); ok {
+		return "tickets:\n  auto:\n    " + ev + ": " + literal + "\n"
+	}
+	return "tickets:\n  " + leaf + ": " + literal + "\n"
+}
+
+// TestTicketsKeysAnyLayer: every ticket setting layers like any other key. A
+// global or repository-local declaration is honoured with ordinary per-field
+// precedence and never draws shared-setting-ignored, and a higher layer
+// cancels a global value by declaring the default ("" or false) explicitly.
+// The population is derived from the registry so a new tickets row is covered.
+func TestTicketsKeysAnyLayer(t *testing.T) {
+	var rows []pathSpec
+	seen := map[string]bool{}
+	for _, spec := range registry() {
+		if strings.HasPrefix(spec.path, "tickets.") {
+			rows = append(rows, spec)
+			seen[spec.path] = true
+		}
+	}
+	if len(rows) != 9 || !seen["tickets.provider"] || !seen["tickets.auto.results_completed"] {
+		t.Fatalf("tickets population = %v, want the nine ticket settings", seen)
+	}
+
+	for _, spec := range rows {
+		path := spec.path
+		var g, r, l, cancel string
+		var gv, rv, lv, zero any
+		switch spec.kind {
+		case kindString:
+			g, r, l, cancel = "g-val", "r-val", "l-val", `""`
+			gv, rv, lv, zero = "g-val", "r-val", "l-val", ""
+		case kindBool:
+			g, r, l, cancel = "true", "false", "true", "false"
+			gv, rv, lv, zero = true, false, true, false
+		default:
+			t.Fatalf("%s: unexpected kind %v", path, spec.kind)
+		}
+		doc := func(lit string) string { return ticketsDoc(path, lit) }
+
+		t.Run(path+"/default", func(t *testing.T) {
+			snap := mustSnapshot(t)
+			v, prov, explicit := effectiveLeaf(t, snap.Effective, path)
+			if v != zero || explicit || prov.Layer != LayerBuiltIn {
+				t.Errorf("default = %v (explicit %v) from %q, want non-explicit built-in %v", v, explicit, prov.Layer, zero)
+			}
+		})
+		for _, tc := range []struct {
+			name    string
+			sources []Source
+			want    any
+			layer   LayerKind
+		}{
+			{"global", []Source{srcG(doc(g))}, gv, LayerGlobal},
+			{"local", []Source{srcL(doc(l))}, lv, LayerRepositoryLocal},
+			{"repo over global", []Source{srcG(doc(g)), srcR(doc(r))}, rv, LayerRepository},
+			{"local over repo", []Source{srcR(doc(r)), srcL(doc(l))}, lv, LayerRepositoryLocal},
+			{"repo cancels global", []Source{srcG(doc(g)), srcR(doc(cancel))}, zero, LayerRepository},
+			{"local cancels global", []Source{srcG(doc(g)), srcL(doc(cancel))}, zero, LayerRepositoryLocal},
+		} {
+			t.Run(path+"/"+tc.name, func(t *testing.T) {
+				snap := mustSnapshot(t, tc.sources...)
+				v, prov, explicit := effectiveLeaf(t, snap.Effective, path)
+				if v != tc.want || prov.Layer != tc.layer || !explicit {
+					t.Errorf("%s = %v (explicit %v) from %q, want explicit %v from %q", path, v, explicit, prov.Layer, tc.want, tc.layer)
+				}
+				if diagPathSet(snap, CodeSharedSettingIgnored)[path] {
+					t.Errorf("%s drew %s", path, CodeSharedSettingIgnored)
+				}
+			})
+		}
+	}
+
+	t.Run("mixed block", func(t *testing.T) {
+		snap := mustSnapshot(t,
+			srcG("tickets:\n  provider: jira\n  project: CLOUD\n"),
+			srcR("tickets:\n  project: OPS\n"))
+		eff := snap.Effective
+		if v := eff.Tickets.Provider; v.Value != "jira" || v.Provenance.Layer != LayerGlobal {
+			t.Errorf("provider = %+v, want jira from the global layer", v)
+		}
+		if v := eff.Tickets.Project; v.Value != "OPS" || v.Provenance.Layer != LayerRepository {
+			t.Errorf("project = %+v, want OPS from the repository layer", v)
+		}
+		if ignored := diagPathSet(snap, CodeSharedSettingIgnored); len(ignored) != 0 {
+			t.Errorf("unexpected %s diagnostics: %v", CodeSharedSettingIgnored, ignored)
+		}
+		if !PreflightMutation(snap).Allowed {
+			t.Errorf("preflight blocked a layered tickets block: %v", blockerPaths(snap))
+		}
+	})
 }

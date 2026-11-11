@@ -98,3 +98,45 @@ func TestSharedSettingRemedyNamesPrivateConfig(t *testing.T) {
 		t.Errorf("remedy = %q, want it to name .git/dckt/config.yml and not .docket.yml", r)
 	}
 }
+
+// TestPrivateRepositoryTicketsLayerOverGlobal: a private repository reads the
+// global config and then .git/dckt/config.yml, so a global ticket value is
+// honoured there and the private config cancels one by declaring the default.
+func TestPrivateRepositoryTicketsLayerOverGlobal(t *testing.T) {
+	tmp := pinEnv(t)
+	repo := t.TempDir()
+	writeFile(t, filepath.Join(repo, ".git", "dckt", "config.yml"),
+		"visibility: private\ntickets:\n  project: \"\"\n  auto:\n    pr_opened: false\n")
+	global := filepath.Join(tmp, "global.yml")
+	writeFile(t, global,
+		"tickets:\n  provider: jira\n  site: tickets.example.com\n  project: CLOUD\n  auto:\n    pr_opened: true\n")
+
+	got, err := LoadFilesystemSources(FSOptions{RepoDir: repo, GlobalPath: global})
+	if err != nil {
+		t.Fatalf("LoadFilesystemSources: %v", err)
+	}
+	if len(got) != 2 || got[0].Layer != LayerGlobal ||
+		got[1].Layer != LayerRepository || got[1].Name != ".git/dckt/config.yml" {
+		t.Fatalf("sources = %+v, want [global, {repository .git/dckt/config.yml}]", got)
+	}
+	snap, _, err := Resolve(got, mainCtx)
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	tk := snap.Effective.Tickets
+	if tk.Provider.Value != "jira" || tk.Provider.Provenance.Layer != LayerGlobal {
+		t.Errorf("provider = %+v, want jira from the global layer", tk.Provider)
+	}
+	if tk.Site.Value != "tickets.example.com" || tk.Site.Provenance.Layer != LayerGlobal {
+		t.Errorf("site = %+v, want tickets.example.com from the global layer", tk.Site)
+	}
+	if tk.Project.Value != "" || !tk.Project.Explicit || tk.Project.Provenance.Layer != LayerRepository {
+		t.Errorf("project = %+v, want an explicit \"\" from the private config", tk.Project)
+	}
+	if tk.Auto.PROpened.Value || !tk.Auto.PROpened.Explicit || tk.Auto.PROpened.Provenance.Layer != LayerRepository {
+		t.Errorf("auto.pr_opened = %+v, want an explicit false from the private config", tk.Auto.PROpened)
+	}
+	if ignored := diagPathSet(snap, CodeSharedSettingIgnored); len(ignored) != 0 {
+		t.Errorf("unexpected %s diagnostics: %v", CodeSharedSettingIgnored, ignored)
+	}
+}
