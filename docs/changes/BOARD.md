@@ -1,12 +1,12 @@
 # Backlog
 
-**592 changes** — 🟣 1 groomed · 🟡 4 proposed · ⚪ 15 deferred · ✅ 427 done · 🗑️ 145 killed
+**592 changes** — 🟢 1 in progress · 🟡 4 proposed · ⚪ 15 deferred · ✅ 427 done · 🗑️ 145 killed
 
-## 🟣 Groomed (1)
+## 🟢 In progress (1)
 
-| # | Title | Priority | Type | Spec | Readiness |
-|---|-------|----------|------|------|-----------|
-| [0587](active/0587-update-tickets-automatically-after-each-event.md) | Update tickets automatically after each event | `medium` | `feat` | [spec](../superpowers/specs/2026-11-11-update-tickets-automatically-after-each-event-design.md) | build-ready |
+| # | Title | Priority | Type | Spec | Branch | State |
+|---|-------|----------|------|------|--------|-------|
+| [0587](active/0587-update-tickets-automatically-after-each-event.md) | Update tickets automatically after each event | `medium` | `feat` | [spec](../superpowers/specs/2026-11-11-update-tickets-automatically-after-each-event-design.md) | `feat/update-tickets-automatically-after-each-event` | building |
 
 ## 🟡 Proposed (4)
 

@@ -2,7 +2,7 @@
 id: 587
 slug: 'update-tickets-automatically-after-each-event'
 title: 'Update tickets automatically after each event'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'feat'
 deliverable: 'pr'
@@ -19,7 +19,7 @@ results:
 auto_groomable:
 hold:
 branch_prefix:
-branch:
+branch: 'feat/update-tickets-automatically-after-each-event'
 pr:
 blocked_by:
 reconciled: false
