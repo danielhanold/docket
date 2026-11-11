@@ -2,7 +2,7 @@
 id: 592
 slug: 'layer-the-tickets-config-keys-at-every-normal-level-not-just'
 title: 'Layer the tickets.* config keys at every normal level, not just the repo'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'refactor'
 deliverable: 'pr'
@@ -20,7 +20,7 @@ auto_groomable:
 hold:
 branch_prefix:
 branch: 'refactor/layer-the-tickets-config-keys-at-every-normal-level-not-just'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/456'
 ticket_provider:
 ticket_id:
 ticket_url:
@@ -60,3 +60,12 @@ Changing the repository-identity keys (integration_branch, changes_dir, adrs_dir
 ### 2026-11-11
 
 Unchanged against main b3bc2ae69. Trace step 1 re-run: readers of eff.Tickets are still only internal/app/config.go (diagnostic.config) and internal/app/ticket_context.go (auto switches); none needs cross-clone agreement.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: f4b62758b214f21eb9de4476dba27af91cff9b6c
+ran_at:   2026-11-11T02:42:41Z
+<!-- docket:build-evidence:end -->

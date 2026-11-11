@@ -1,12 +1,12 @@
 # Backlog
 
-**592 changes** — 🟢 1 in progress · 🟡 5 proposed · ⚪ 15 deferred · ✅ 426 done · 🗑️ 145 killed
+**592 changes** — 🔵 1 built · 🟡 5 proposed · ⚪ 15 deferred · ✅ 426 done · 🗑️ 145 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | State |
-|---|-------|----------|------|------|--------|-------|
-| [0592](active/0592-layer-the-tickets-config-keys-at-every-normal-level-not-just.md) | Layer the tickets.* config keys at every normal level, not just the repo | `medium` | `refactor` | [spec](../superpowers/specs/2026-11-11-layer-the-tickets-config-keys-at-every-normal-level-not-just-design.md) | `refactor/layer-the-tickets-config-keys-at-every-normal-level-not-just` | building |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0592](active/0592-layer-the-tickets-config-keys-at-every-normal-level-not-just.md) | Layer the tickets.* config keys at every normal level, not just the repo | `medium` | `refactor` | [#456](https://github.com/danielhanold/docket/pull/456) | awaiting merge |
 
 ## 🟡 Proposed (5)
 
