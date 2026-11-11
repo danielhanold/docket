@@ -27,3 +27,7 @@ No provider code to maintain. Behavior lives in skill prose and can only be veri
 - One ticket skill for all operations: rejected, because autonomous runs would load the attended refinement and import text.
 - A forked or agent-wrapped skill: rejected, because it has no connector access and cannot ask the person.
 - Provider API code in the binary: rejected, because it needs credentials and per-provider code.
+
+## Update (2026-11-11)
+
+On 2026-11-11, in Claude Code, a dispatched general-purpose agent listed the session's ticket connector tools and loaded their schemas. Nothing was called, and docket's own agent wrappers were not tried. So "cannot reach the session's connector tools" does not hold in every harness, while "cannot ask the person" does. The decision is unchanged. The update skill now runs inside dispatched and forked workflow agents (ADR-0163).
