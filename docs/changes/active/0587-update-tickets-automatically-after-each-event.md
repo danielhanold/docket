@@ -48,7 +48,12 @@ Four config switches, each off by default, get their effect: `tickets.auto.spec_
 
 When the switch is off, or the change has no ticket, nothing happens: no prompt and no report line. A missing connector or a failed post costs one report line and never stops or fails the run. In a private repository an automatic update posts nothing and reports one line; change 588 lifts that. The maintenance sweep never posts, and when a stack root lands only the root's ticket is updated.
 
-Ticket creation stays on request. The `tickets.auto.change_created` switch planned by change 581 is removed: a captured stub is not ready to be a ticket, and creating one later was judged too complex for what it saves. This was decided at grooming and departs from 581's plan.
+Ticket creation stays on request. The `tickets.auto.change_created` switch planned by change 581 is removed. This was decided at grooming and departs from 581's plan, for two reasons:
+
+- Creating a ticket is an action for a person, not for an agent, so automating it is usually the wrong approach.
+- There is no clear place for the trigger: a captured stub is not ready to be a ticket, and a groomed change with a full spec has its own problems. Supporting both was judged too complex for what it saves.
+
+Those reasons are documented in detail for users in a new concepts page, `docs/concepts/tickets.md`, which also explains what the ticket pieces are. The config-key reference and the glossary each point to it.
 
 No new operation is needed; the existing ticket read already returns the switch and the ticket state.
 
@@ -60,6 +65,7 @@ No new operation is needed; the existing ticket read already returns the switch 
 - In a private repository an automatic update posts nothing and reports one line.
 - A missing connector or failed post is one report line; the run's outcome is unchanged.
 - `tickets.auto.change_created` no longer exists in the schema, the sample config, or the docs.
+- The docs have a concepts page on tickets that explains in detail why docket never creates a ticket by itself: creating a ticket is a person's action, and there is no one right moment to create it. It is listed in both docs indexes.
 - The results list an Important live check, done by a person from a shared scratch repository, never from this one.
 
 ## Out of scope

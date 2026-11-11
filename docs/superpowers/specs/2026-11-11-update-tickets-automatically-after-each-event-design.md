@@ -4,7 +4,7 @@
 
 # Update tickets automatically after each event — design
 
-Change #587, groomed interactively on 2026-11-11.
+Change #587, groomed interactively on 2026-11-11. Revised the same day at the person's request to add decision 9, which documents why ticket creation is not automated.
 
 ## Intent
 
@@ -130,11 +130,12 @@ The skill's opening, which today says it runs "only when the person asks" and th
 
 A ticket is only ever created when a person asks, through `docket-link-ticket`, where they see a draft and approve it. This change adds no automatic ticket creation at any point.
 
-This departs from the earlier ticket-integration design, which planned a fifth switch, `tickets.auto.change_created`, to create a ticket when a change is created. It was dropped at grooming, by the person's decision, for these reasons:
+This departs from the earlier ticket-integration design, which planned a fifth switch, `tickets.auto.change_created`, to create a ticket when a change is created. It was dropped at grooming, by the person's decision, for two reasons:
 
-- A quickly captured stub is not ready to be a ticket: it normally has no acceptance criteria, and capturing one must stay fast and ask nothing.
-- The moment a change becomes ticket-ready is when its design lands, not when it is created, so the switch pointed at the wrong moment.
-- Creating at the right moment instead was judged too complex for what it saves, which is one sentence from the person.
+1. **Creating a ticket is an action for a person, not for an agent.** A ticket tells a team that a piece of work is real and what done looks like. That is a person's statement to make, so automating it is usually the wrong approach. Automatic updates are different: they report something that already happened, on a ticket a person already chose to have.
+2. **There is no clear place for the trigger.** At creation the change is often a quickly captured stub, which is not ready to be a ticket: it normally has no acceptance criteria, and capturing one must stay fast and ask nothing. After grooming the change has a full spec and is much closer to ready, but that moment has its own problems (decision 9 lists them). Supporting both moments was judged too complex for what it saves, which is one sentence from the person.
+
+Decision 9 writes both reasons out in full, and requires them in docket's documentation.
 
 **The `tickets.auto.change_created` key is removed.** It has no effect today and now never will. It has not been in a tagged release, so it is removed outright with no alias and no deprecation path: a config file that still sets it gets the normal unknown-key error (a warning from `install`).
 
@@ -154,6 +155,71 @@ Whether a connector is reachable inside such an agent depends on the harness. AD
 
 Where a connector is not reachable, the result is the "no connector" line in decision 4. It is never a handoff to the parent session, and no site is moved to make up for it.
 
+### 9. The reason ticket creation is not automated is documented for users
+
+A person who turns on the four switches will ask why there is no switch that creates the ticket. The answer must be in docket's own documentation, in detail, not only in this spec and the ADR. This was added to the design by the person after the first spec landed.
+
+**Where it goes.** A new page in the concepts tier, `docs/concepts/tickets.md`. That tier is where docket explains "what each piece is and why it is shaped the way it is", and it has no page about tickets today: ticket work appears only in the reference tier (the config keys, the glossary, and the skills list). The concepts tier was chosen at grooming; the person asked for "the normal docket documentation sections" and did not name a tier.
+
+**The page's shape.** It follows the four sections every concepts page has, kept short and limited to what docket does once this change is built, plus one extra section that carries the detail:
+
+- *The problem it solves*: a team tracks work in a ticket system and docket tracks it in changes; without a connection, a person copies status across by hand. Docket links the two and keeps the ticket informed without owning the ticket system: it installs no connector, stores no credential, and decides nothing about what the team is asked to work on.
+- *The moving parts*: the link on a change record; `docket-link-ticket` (link, create, or import, always with the person present); `docket-update-ticket` (a short comment, when the person asks or when a workflow invokes it); the four `tickets.auto.*` switches and the event each one follows; the connector.
+- *The invariants*: a ticket is created only when a person asks and approves the draft, and no setting changes that; a link is recorded only after the connector confirms; an automatic update posts only when its switch is on and the change already has a ticket; with the switch off nothing happens and nothing is reported; an update that fails or cannot be posted costs one report line and never stops, fails, or retries a run.
+- *Why docket never creates a ticket by itself*: the extra section, drafted below.
+- *Decided in*: the ADR this change records (see *ADR*), ADR-0162, and ADR-0044, cited the way the docs already cite an ADR whose file is not on the integration branch.
+
+**The extra section, in draft.** The builder may reword it and fit it to the page, but every point below must survive, including the worked example. It is deliberately long: the person asked for very detailed documentation.
+
+> ## Why docket never creates a ticket by itself
+>
+> Docket posts updates to a ticket automatically. It does not create a ticket automatically, and no setting makes it. A ticket is created only when you ask ("create a Jira ticket from #12"), after you have seen the draft and said go. There are two reasons.
+>
+> ### Creating a ticket is a person's action
+>
+> A ticket is a statement to other people. It puts a piece of work into a team's backlog, its planning, and often its notifications, and it says: this is real work, and this is what done looks like. Docket treats that statement as yours to make. Creating a ticket takes judgments that an agent running by itself has no basis for:
+>
+> - **Whether the work should have a ticket at all.** Many changes never should: a small chore, a fix found and made in the same hour, an idea that is killed when it is designed.
+> - **Whether a ticket already exists.** The work may already be in the ticket system in someone else's words. The right action is then to link the change to that ticket, and only someone who knows the backlog can tell.
+> - **Whether the change is ready to hand over.** Before creating a ticket, docket asks one question of the change: could another engineer take ownership of this as a user story? When the answer is no, the gaps (most often acceptance criteria) are filled by asking you. Docket never invents scope or acceptance criteria.
+> - **Where it goes and how it is filed.** The project, the ticket type, the title format, the sprint, the labels, and the required fields follow your team's conventions.
+> - **What it says.** The description is read by people who never open docket.
+>
+> When you ask for a ticket, `docket-link-ticket` works through each of these with you and shows you the whole draft before anything is created. An agent running unattended has nobody to show it to. Automating creation would therefore mean one of two things: tickets that nobody read before the team saw them, or an unattended run that stops to ask, which defeats the point of running unattended.
+>
+> A ticket is also hard to take back. Once created it has a number, it may have notified people, and deleting it may need a permission you do not have. A wrong comment is deleted in seconds.
+>
+> Automatic updates are a different kind of action, which is why docket has them. An update reports something that has already happened (the spec was written, the pull request opened) on a ticket you already chose to have. You made both decisions that matter: the change has a ticket because you created or linked it, and updates are posted because you turned the switch on. The agent decides nothing. It reports.
+>
+> That is the line docket draws: agents report on tickets, and people create them. Automating a decision that belongs to a person is usually the wrong tool, so docket offers no switch for it.
+>
+> ### There is no one right moment to create it
+>
+> An automation needs a trigger: one point in a change's life at which the ticket is created. There are two candidates, and neither works for every change.
+>
+> Take an idea you capture while working on something else: "retry uploads after a timeout".
+>
+> - **When the change is created.** You capture it as a stub in a few seconds and go back to your work. The stub says why and what changes. It normally has no acceptance criteria and no design, and capturing has to stay that fast, so nothing can stop to ask you for them. A ticket created now would be a title and two paragraphs with no definition of done. The stub may later be killed, deferred, folded into another change, or reshaped when it is designed, and the ticket would stay in the team's backlog describing work nobody plans to do.
+> - **When the design is written.** Once the change is groomed it has acceptance criteria and a spec, and it is much closer to ready. But this moment has problems of its own. A design is written in three different places: when you design a change as you create it, when you groom a stub, and when a stub is groomed unattended. In the unattended case nobody is there to approve a draft. Some changes already have a ticket by then, because they were made from one or linked earlier. And a team that plans its design work in the ticket system needs the ticket before this point, not after it.
+>
+> A trigger at creation produces thin tickets for ideas that may never be built. A trigger at design time produces unreviewed tickets from unattended grooming, and comes too late for some teams. Supporting both would need a rule for which changes are ready, more than one setting, and a set of special cases, all to save you one sentence.
+>
+> So the trigger is you. Say "create a Jira ticket from #12" when the change is ready, whenever that is. From then on the switches keep the ticket current without you.
+
+**Pointers to the page.** A reader meets the question in two places, and each gets one sentence that links to the extra section:
+
+- `docs/reference/config-keys.md`, in the paragraph under the table that describes the `tickets` settings: creating a ticket has no switch and is always on request.
+- `docs/reference/glossary.md`, in the `docket-link-ticket` entry.
+
+The page is listed in both indexes, `docs/README.md` and `docs/concepts/README.md`.
+
+**Rules for the page.**
+
+- It states docket's standing position and the reasons for it. It does not name the removed `tickets.auto.change_created` key, and it does not say a switch was once planned or dropped.
+- It cites no change and no pull request. ADR citations are allowed.
+- It describes private repositories only as docket behaves when this change is built: an automatic update there posts nothing and reports one line.
+- It makes no ticket-system claim that is not true of ticket systems in general; "may need a permission" is the level of claim wanted, not a statement about one product.
+
 ## Where it lands
 
 Skills (each edit is mirrored in the embedded tree by `go generate ./internal/assets/`):
@@ -172,7 +238,8 @@ Docs and samples:
 - `docs/reference/config-keys.md`: drop the `change_created` row; replace "no effect yet" on the other four with what each does; rewrite the paragraph below the table, which says nothing acts on the switches.
 - `.docket.example.yml` and its embedded twin: drop `change_created` and rewrite the comment that says the switches name five events and are not acted on. If a frozen fixture copies this file, follow that fixture's own drift-guard remedy.
 - `docs/reference/skills-and-agents.md` and `docs/reference/glossary.md`: the `docket-update-ticket` entries say it posts "when you ask"; add the automatic case.
-- Docs describe only how docket behaves now: no mention of the removed key or of what was planned.
+- `docs/concepts/tickets.md` (new), its two index entries, and the two pointers to it (decision 9).
+- Docs describe only how docket behaves now: no mention of the removed key or of what was planned. The new page explains why ticket creation is always on request as a standing position, not as history.
 
 Size budgets in `internal/repoguard/budgets_test.go` are raised for each grown file, with this change's note, per that table's convention.
 
@@ -185,6 +252,7 @@ Size budgets in `internal/repoguard/budgets_test.go` are raised for each grown f
   - each site's token matches its file per the table in decision 1.
   Key the scan on the invocation's shape, not on a list of spellings. `ticketEvents` is unexported, so the token checks belong in an `internal/app` test, beside the existing skill test for the ticket read; no production code is exported for this.
 - **Prose contracts.** Pin the convention's shared definition (the read, both silent cases, the direction) and the update skill's automatic rules (never asks, the one-line cases, private posts nothing, never retries, never touches the run). Update the existing contract rows that pin "only when the person asks" on `docket-update-ticket` and the "when you ask" doc entries in the same commit. Add an absent-clause assertion that the skill no longer says nothing runs on its own.
+- **The concepts page.** Add prose-contract rows for `docs/concepts/tickets.md`: one pinned clause for each of the two reasons (a person's action; no one right moment), one for the invariant that no setting creates a ticket, and the page's line in each index. Pin the two pointer sentences in `config-keys.md` and the glossary. The living-docs alignment guard already scans `docs/concepts`, so a change or PR citation on the page turns it red with no new test.
 - **Config.** `tickets.auto.change_created` is rejected as an unknown key; the four remaining switches resolve as before.
 - **Mutation-test every new guard**: remove a site, drop a `DIRECTED to:`, swap an event token, delete each pinned clause, and watch each turn red. Run with the test cache defeated.
 - The whole suite runs at the build gate.
@@ -192,7 +260,7 @@ Size budgets in `internal/repoguard/budgets_test.go` are raised for each grown f
 
 ## ADR
 
-Record one ADR at build: automatic ticket updates are per-event switches where off means nothing happens, with no queue, ledger, retry, or prompt; a failure is one report line and never a gate; and ticket creation is never automatic. It relates to ADR-0044 (call-site directions) and ADR-0162 (the two inline ticket skills). It also states that the update skill now runs inside dispatched and forked agents, and that ADR-0162's remark about forked skills and connector tools does not hold in every harness (decision 8), without rewriting that ADR.
+Record one ADR at build: automatic ticket updates are per-event switches where off means nothing happens, with no queue, ledger, retry, or prompt; a failure is one report line and never a gate; and ticket creation is never automatic. It gives both reasons for that last point as decision 6 states them (creating a ticket is a person's action; there is no clear place for the trigger, stub or groomed change), and names the stub-or-groomed-change alternatives it rejected. It relates to ADR-0044 (call-site directions) and ADR-0162 (the two inline ticket skills). It also states that the update skill now runs inside dispatched and forked agents, and that ADR-0162's remark about forked skills and connector tools does not hold in every harness (decision 8), without rewriting that ADR.
 
 ## Acceptance criteria
 
@@ -203,6 +271,7 @@ Record one ADR at build: automatic ticket updates are per-event switches where o
 - A missing connector or failed post is one report line; the run's disposition and every later step are unchanged.
 - The maintenance sweep and a stack root's descendants never get an automatic update.
 - `tickets.auto.change_created` no longer exists in the schema, the sample config, or the docs.
+- `docs/concepts/tickets.md` exists, is listed in both docs indexes, and explains in detail why docket never creates a ticket by itself: creating a ticket is a person's action, and there is no one right moment to create it (a stub is too early; a groomed change has its own problems). It keeps every point of the draft in decision 9, and `config-keys.md` and the glossary each point to it.
 - The results list an **Important** live check, done by a person from a shared scratch repository against a sandbox ticket project, never from this repository:
   - with each switch on in turn, run the workflow and confirm the comment arrives with working links;
   - with the switch off, and with the switch on but no ticket, confirm nothing is posted and nothing is reported;
@@ -217,6 +286,7 @@ Record one ADR at build: automatic ticket updates are per-event switches where o
 - Mentions in automatic updates.
 - Syncing ticket status, assignee, or fields; rewriting a ticket's description.
 - Reordering docket-new-change's steps.
+- A how-to guide page for ticket work. The new concepts page explains what the ticket pieces are and why; it is not a walkthrough.
 
 ## Left to the builder
 
@@ -224,6 +294,7 @@ Record one ADR at build: automatic ticket updates are per-event switches where o
 - Whether the automatic path sits in `docket-update-ticket/SKILL.md` or in a new reference file loaded only when a workflow invokes the skill. A reference file matches how the skill already splits shared and private delivery.
 - Where the docket-finalize-change site sits among its cleanup, integration-sync, and rebuild steps, as long as it follows closeout and its line reaches the final report.
 - The exact wording of report lines.
+- The concepts page's title, its wording, and whether its moving parts get a diagram, as long as every point of decision 9's draft survives. Which clauses the prose contracts pin.
 - The shape of the site-guard scan.
 
 ## What the code says today
@@ -234,4 +305,5 @@ Traced at main `4874f44ea`; anchors are symbols and headings, not line numbers.
 - The five `tickets.auto.*` leaves in `internal/config/schema.go` are `scopeAny`. `docs/reference/config-keys.md` describes all five as having "no effect yet".
 - No workflow skill invokes `docket-update-ticket` today. `skills/docket-update-ticket/SKILL.md` opens with "only when the person asks" and "Nothing here runs on its own after an event", and a prose contract pins the first phrase.
 - `finalize.closeout` returns `done-archived`, `stacked-merged`, `root-archived`, `already-closed-out`, `contended`, `blocked`, or `unknown`; `root-archived` carries `carried_ids`. Its callers are docket-finalize-change (step 9), the maintenance sweep and preflight, and docket-implement-next's bounded closeout in `references/edge-paths.md`.
+- The user docs have no page about tickets outside the reference tier: `docs/concepts/` holds nine pages, none on tickets, and `docs/guide/` has no ticket page. Every concepts page has the four sections *The problem it solves*, *The moving parts*, *The invariants*, and *Decided in*; one page adds a fifth section of its own. `TestLivingDocsAlignment` (`internal/repoguard/docs_alignment_test.go`) scans `docs/concepts` for change and PR citations and allows ADR citations. No guard checks that a concepts page is indexed. The ADR files on the integration branch stop well short of ADR-0162, so the docs cite later ADRs by number without a relative link.
 - `internal/repoguard/skill_handoff_sites_test.go` guards `DIRECTED to:` on role-skill invocations only. `docket-update-ticket` is not a role skill, so it needs its own guard.
