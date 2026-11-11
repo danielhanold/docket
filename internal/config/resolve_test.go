@@ -660,6 +660,21 @@ func TestTicketsStringSingleLine(t *testing.T) {
 	}
 }
 
+// TestTicketsBareKeyIsRejectedWithHint: a bare ticket key is rejected with a
+// message naming the fix, and the fix it names is accepted.
+func TestTicketsBareKeyIsRejectedWithHint(t *testing.T) {
+	_, diags := decodeDoc(t, "tickets:\n  project:\n")
+	if len(diags) != 1 || diags[0].Code != CodeInvalidType || diags[0].Path != "tickets.project" {
+		t.Fatalf("want one %s diagnostic at tickets.project, got %+v", CodeInvalidType, diags)
+	}
+	if !strings.Contains(diags[0].Message, `write "" to clear the value`) {
+		t.Errorf("message %q does not name the empty-string fix", diags[0].Message)
+	}
+	if _, diags := decodeDoc(t, "tickets:\n  project: \"\"\n"); len(diags) != 0 {
+		t.Errorf("project: \"\" should be accepted, got %+v", diags)
+	}
+}
+
 // TestEverySharedSettingGuard asserts BOTH halves for every repo-only row in both machine
 // layers: the machine declaration is warned about at ITS OWN provenance, and
 // the committed layer's value is the one that resolves. A warning alone would

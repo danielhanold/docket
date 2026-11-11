@@ -601,6 +601,11 @@ func enumLeaf(allowed ...string) leafValidator {
 // requires a clean, relative, parent-free path.
 func stringLeaf(nonEmpty, spaceFree, relPath bool) leafValidator {
 	return func(src Source, path string, n *yaml.Node) (any, []Diagnostic) {
+		// A bare key on a setting that accepts the empty string: name the fix.
+		if !nonEmpty && !relPath && n.Kind == yaml.ScalarNode && n.Tag == tagNull {
+			return nil, []Diagnostic{leafDiag(src, path, CodeInvalidType, n,
+				`expects a string, got an empty value; write "" to clear the value`)}
+		}
 		if diags := scalarWithTag(src, path, n, tagStr, "a string"); diags != nil {
 			return nil, diags
 		}

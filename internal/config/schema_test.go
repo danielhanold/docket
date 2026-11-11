@@ -539,3 +539,50 @@ func TestAgentHarnessTokensIsACopy(t *testing.T) {
 		t.Fatalf("mutation leaked into the next call: %v", again)
 	}
 }
+
+// TestStringNullNamesEmptyStringFix: a bare null on a string setting that
+// accepts the empty string names the fix (write ""); a string setting that
+// rejects empty never suggests it. Both sets come from the registry.
+func TestStringNullNamesEmptyStringFix(t *testing.T) {
+	emptyStr := &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: ""}
+	nullNode := &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!null"}
+	accepts := map[string]pathSpec{}
+	rejects := map[string]pathSpec{}
+	for _, spec := range registry() {
+		if spec.kind != kindString || spec.validate == nil {
+			continue
+		}
+		if _, diags := spec.validate(repoSource(""), spec.path, emptyStr); diags == nil {
+			accepts[spec.path] = spec
+		} else {
+			rejects[spec.path] = spec
+		}
+	}
+	for _, p := range []string{"tickets.provider", "tickets.project", "finalize.test_command"} {
+		if _, ok := accepts[p]; !ok {
+			t.Errorf("population floor: %s should accept the empty string", p)
+		}
+	}
+	if _, ok := rejects["changes_dir"]; !ok {
+		t.Errorf("population floor: changes_dir should reject the empty string")
+	}
+	for p, spec := range accepts {
+		_, diags := spec.validate(repoSource(""), p, nullNode)
+		if len(diags) != 1 || diags[0].Code != CodeInvalidType {
+			t.Errorf("%s: want one %s diagnostic for null, got %+v", p, CodeInvalidType, diags)
+			continue
+		}
+		m := diags[0].Message
+		if !strings.Contains(m, "expects a string, got an empty value") || !strings.Contains(m, `write "" to clear the value`) {
+			t.Errorf("%s: null message %q does not name the empty-string fix", p, m)
+		}
+	}
+	for p, spec := range rejects {
+		_, diags := spec.validate(repoSource(""), p, nullNode)
+		for _, d := range diags {
+			if strings.Contains(d.Message, `write ""`) {
+				t.Errorf("%s: rejects empty but null message %q suggests writing \"\"", p, d.Message)
+			}
+		}
+	}
+}
