@@ -18,13 +18,16 @@ import (
 // unexported and so is checked here, beside the skill test for the ticket read.
 //
 // A block (a blank-line-separated paragraph, whitespace collapsed so a
-// hard-wrapped paragraph is one string) is an INVOCATION when it puts the
-// backticked `docket-update-ticket` within 40 characters of an un-negated
-// invoke verb, in either order, so a passive "is invoked" counts and a
-// prohibition ("never invokes") does not. An invocation that names an event
-// token (tickets.auto.<token> or --event <token>) is a SITE. The convention's
-// shared definition invokes the skill with no token; it is the only such
-// invocation allowed.
+// hard-wrapped paragraph is one string) is an INVOCATION in either of two
+// shapes. Keyed on shape: a block that names the backticked
+// `docket-update-ticket` and an event token (tickets.auto.<token> or
+// --event <token>) is a SITE whatever verb carries it ("invoke", "run",
+// "load", or none), unless every mention of the name sits in a negated
+// clause. Keyed on the verb: a block with no token is an invocation when it
+// puts the name within 40 characters of an un-negated invoke verb, in either
+// order, so a passive "is invoked" counts and a prohibition ("never invokes")
+// does not. The convention's shared definition invokes the skill with no
+// token; it is the only such invocation allowed.
 
 // ticketSiteFiles maps each repo-relative site file to the event it posts.
 var ticketSiteFiles = map[string]string{
@@ -64,7 +67,16 @@ var (
 	// so the negated verb is the matched verb itself and not an earlier one.
 	ticketNegatedVerbRe = regexp.MustCompile(`(?i)(?:\b\w*not|\bnever|\w+n['’]t)\W+(?:\w+\W+){0,2}invok(?:e|ed|es|ing)$`)
 	ticketTokenRe       = regexp.MustCompile(`tickets\.auto\.([a-z0-9_]+)|--event\s+([a-z0-9_]+)`)
+	ticketNameRe        = regexp.MustCompile("`docket-update-ticket`")
+	// ticketNegationRe is a negation word: one ending in "not", "never", or an
+	// n't contraction, the same shape as ticketNegatedVerbRe.
+	ticketNegationRe = regexp.MustCompile(`(?i)(?:\b\w*not\b|\bnever\b|\w+n['’]t\b)`)
+	// ticketClauseEndRe ends the clause a mention of the name sits in.
+	ticketClauseEndRe = regexp.MustCompile(`[.;]`)
 )
+
+// ticketMentionWindow is how far either side of a mention its clause is read.
+const ticketMentionWindow = 40
 
 const ticketDirectedMarker = "DIRECTED to:"
 
@@ -87,15 +99,16 @@ func scanTicketInvocations(files map[string]string) []ticketInvocation {
 	for _, rel := range rels {
 		for _, raw := range ticketBlockSplitRe.Split(files[rel], -1) {
 			block := strings.Join(strings.Fields(raw), " ")
-			if !hasUnnegatedTicketInvoke(block) {
-				continue
-			}
 			var tokens []string
 			for _, m := range ticketTokenRe.FindAllStringSubmatch(block, -1) {
 				tok := m[1] + m[2]
 				if !slices.Contains(tokens, tok) {
 					tokens = append(tokens, tok)
 				}
+			}
+			site := len(tokens) > 0 && hasUnnegatedTicketMention(block)
+			if !site && !hasUnnegatedTicketInvoke(block) {
+				continue
 			}
 			out = append(out, ticketInvocation{
 				rel:      rel,
@@ -117,6 +130,21 @@ func hasUnnegatedTicketInvoke(block string) bool {
 			continue
 		}
 		if !ticketNegatedVerbRe.MatchString(block[max(loc[0]-ticketNegationLookback, 0):loc[1]]) {
+			return true
+		}
+	}
+	return false
+}
+
+// hasUnnegatedTicketMention reports whether block names the backticked
+// `docket-update-ticket` at least once outside a negated clause: no negation
+// word within ticketMentionWindow characters before or after the mention,
+// short of the nearest clause end (a period or semicolon).
+func hasUnnegatedTicketMention(block string) bool {
+	for _, loc := range ticketNameRe.FindAllStringIndex(block, -1) {
+		before := ticketClauseEndRe.Split(block[max(loc[0]-ticketMentionWindow, 0):loc[0]], -1)
+		after := ticketClauseEndRe.Split(block[loc[1]:min(loc[1]+ticketMentionWindow, len(block))], -1)
+		if !ticketNegationRe.MatchString(before[len(before)-1]) && !ticketNegationRe.MatchString(after[0]) {
 			return true
 		}
 	}
@@ -190,6 +218,31 @@ func TestTicketAutoUpdateSites(t *testing.T) {
 		pointed := scanTicketInvocations(map[string]string{"g.md": "Then follow the convention's\n  *Automatic ticket updates* for `tickets.auto.pr_opened`; invoke `docket-update-ticket` **DIRECTED to:** post it."})
 		if len(pointed) != 1 || !pointed[0].follows {
 			t.Errorf("a hard-wrapped definition pointer must count as following it; got %+v", pointed)
+		}
+		// A site is keyed on shape, not on the verb: the name beside an event
+		// token is a site whatever verb carries it, unless the name sits in a
+		// negated clause.
+		shaped := scanTicketInvocations(map[string]string{
+			"h.md": "Then run `docket-update-ticket` **DIRECTED to:** post it for `tickets.auto.pr_merged`.",
+			"i.md": "**Ticket update.** Load `docket-update-ticket`\n  for `--event pr_opened`.",
+			"j.md": "Housekeeping never runs `docket-update-ticket` for `tickets.auto.pr_merged`.",
+			"k.md": "Posting the `tickets.auto.pr_opened` update is `docket-update-ticket`'s job; it does not run here.",
+		})
+		shapedBy := map[string]ticketInvocation{}
+		for _, inv := range shaped {
+			shapedBy[inv.rel] = inv
+		}
+		if inv, ok := shapedBy["h.md"]; !ok || !slices.Equal(inv.tokens, []string{TicketEventPRMerged}) {
+			t.Errorf("a site worded with \"run\" must be a site with token pr_merged; got %+v (found %v)", inv, ok)
+		}
+		if inv, ok := shapedBy["i.md"]; !ok || !slices.Equal(inv.tokens, []string{TicketEventPROpened}) {
+			t.Errorf("a hard-wrapped site worded with \"load\" must be a site with token pr_opened; got %+v (found %v)", inv, ok)
+		}
+		if inv, ok := shapedBy["j.md"]; ok {
+			t.Errorf("a negated mention beside a token must not be a site; got %+v", inv)
+		}
+		if inv, ok := shapedBy["k.md"]; !ok || len(inv.tokens) != 1 {
+			t.Errorf("an un-negated mention beside a token is a site whatever its verb; got %+v (found %v)", inv, ok)
 		}
 		// A negation of an earlier verb must not negate a later invocation.
 		mixed := scanTicketInvocations(map[string]string{"f.md": "Do not invoke it twice; invoke `docket-update-ticket` once."})

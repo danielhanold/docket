@@ -74,8 +74,9 @@ you link a change to a ticket or create one from a change: it uses `provider`, `
 workflow that just finished an event post that event's update to the change's ticket by itself,
 as a comment, with nothing asked. Creating a ticket has no switch: it is always on request
 ([why](../concepts/tickets.md#why-docket-never-creates-a-ticket-by-itself)). Off (the default)
-means nothing is posted or reported, and a switch does nothing for a change with no ticket. In a private repository an automatic update
-posts nothing and reports one line. Each setting can come from any layer, so `provider` and
+means nothing is posted or reported, unless docket's own read of the change fails, and a switch
+does nothing for a change with no ticket. In a private repository an automatic update posts
+nothing and reports one line. Each setting can come from any layer, so `provider` and
 `site` can be set once in the global config, and a switch can be tried on one machine in
 `.docket.local.yml`. To cancel a global value for one repository, write the default in
 `.docket.yml` (for everyone) or `.docket.local.yml` (for this clone): `project: ""` for a setting,
