@@ -25,7 +25,7 @@ ticket_provider:
 ticket_id:
 ticket_url:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -61,3 +61,9 @@ Docket keeps the readiness check, the description body, the person's approval of
 ## Out of scope
 
 Using the companion skill when linking, importing, or posting updates (`docket-update-ticket`); naming, shipping, or describing any particular companion skill or its values; syncing ticket fields after creation; provider API code or credentials in docket; any ticket-system call from this repository; unattended ticket creation (change 587 decides how a companion skill behaves there).
+
+## Reconcile log
+
+### 2026-11-11
+
+Unchanged against main 448b8be92: create.md still carries the never-rewritten wording in steps 8 and 9, the tickets.* schema leaves are unchanged, and dependency 585 is done. The recent docket export command split touches create.md step 5 only, outside this scope.
