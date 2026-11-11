@@ -15,7 +15,7 @@ discovered_from: [585]
 adrs: [162]
 spec: 'docs/superpowers/specs/2026-11-11-follow-the-team-s-own-ticket-skill-for-project-specific-tick-design.md'
 plan: 'docs/superpowers/plans/2026-11-11-follow-the-team-s-own-ticket-skill-for-project-specific-tick.md'
-results:
+results: 'docs/results/2026-11-11-follow-the-team-s-own-ticket-skill-for-project-specific-tick-results.md'
 auto_groomable:
 hold:
 branch_prefix:
@@ -35,6 +35,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-11-11-follow-the-team-s-own-ticket-skill-for-project-specific-tick-design.md](../../superpowers/specs/2026-11-11-follow-the-team-s-own-ticket-skill-for-project-specific-tick-design.md) |
 | Plan | [2026-11-11-follow-the-team-s-own-ticket-skill-for-project-specific-tick.md](../../superpowers/plans/2026-11-11-follow-the-team-s-own-ticket-skill-for-project-specific-tick.md) |
+| Results | [2026-11-11-follow-the-team-s-own-ticket-skill-for-project-specific-tick-results.md](../../results/2026-11-11-follow-the-team-s-own-ticket-skill-for-project-specific-tick-results.md) |
 | ADRs | [ADR-0162](../../adrs/0162-ticket-work-is-two-inline-skills-split-by-attended-linking-v.md) |
 <!-- docket:artifacts:end -->
 
