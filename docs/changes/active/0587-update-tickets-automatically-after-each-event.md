@@ -2,7 +2,7 @@
 id: 587
 slug: 'update-tickets-automatically-after-each-event'
 title: 'Update tickets automatically after each event'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'feat'
 deliverable: 'pr'
@@ -20,7 +20,7 @@ auto_groomable:
 hold:
 branch_prefix:
 branch: 'feat/update-tickets-automatically-after-each-event'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/457'
 blocked_by:
 reconciled: true
 ---
@@ -80,3 +80,12 @@ Automatic ticket creation, at change creation, at grooming, or anywhere else; au
 ### 2026-11-11
 
 Unchanged against `main` 4874f44ea (the spec was traced at that same commit); dependency #585 is done, and `change_created` still appears at the sites the spec names.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: 2dae6e5034e917ccd1b266ae48a5f893716b5f94
+ran_at:   2026-11-11T14:58:20Z
+<!-- docket:build-evidence:end -->
