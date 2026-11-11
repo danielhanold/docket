@@ -179,6 +179,7 @@ func TestBuiltinEffectiveMatchesRegistryDefaults(t *testing.T) {
 		"tickets.provider":               eff.Tickets.Provider.Value,
 		"tickets.site":                   eff.Tickets.Site.Value,
 		"tickets.project":                eff.Tickets.Project.Value,
+		"tickets.companion_skill":        eff.Tickets.CompanionSkill.Value,
 		"tickets.auto.change_created":    eff.Tickets.Auto.ChangeCreated.Value,
 		"tickets.auto.spec_written":      eff.Tickets.Auto.SpecWritten.Value,
 		"tickets.auto.pr_opened":         eff.Tickets.Auto.PROpened.Value,

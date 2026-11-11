@@ -383,9 +383,11 @@ func buildRegistry() []pathSpec {
 			})},
 
 		// The ticket settings: which ticket system a repository links to, where
-		// new tickets go, and the per-event automation switches. All belong to
+		// new tickets go, and the per-event automation switches. They belong to
 		// the repository, so a machine layer's declaration is ignored with a
-		// warning.
+		// warning. The one exception is companion_skill, which names the
+		// person's own tooling (a skill usually installed for the user, in every
+		// repository) and so is set at any layer.
 		{path: "tickets.provider", kind: kindString, def: "",
 			merge: mergeScalar, scope: scopeRepoOnly, disp: dispSupported,
 			validate: singleLineStringLeaf()},
@@ -394,6 +396,9 @@ func buildRegistry() []pathSpec {
 			validate: singleLineStringLeaf()},
 		{path: "tickets.project", kind: kindString, def: "",
 			merge: mergeScalar, scope: scopeRepoOnly, disp: dispSupported,
+			validate: singleLineStringLeaf()},
+		{path: "tickets.companion_skill", kind: kindString, def: "",
+			merge: mergeScalar, scope: scopeAny, disp: dispSupported,
 			validate: singleLineStringLeaf()},
 		{path: "tickets.auto.change_created", kind: kindBool, def: false,
 			merge: mergeScalar, scope: scopeRepoOnly, disp: dispSupported, validate: boolLeaf()},

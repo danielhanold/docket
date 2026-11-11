@@ -58,9 +58,10 @@ func builtinEffective() Effective {
 		},
 		ChangeTypes: builtinValue([]string{"chore", "docs", "feat", "fix", "refactor", "perf"}),
 		Tickets: Tickets{
-			Provider: builtinValue(""),
-			Site:     builtinValue(""),
-			Project:  builtinValue(""),
+			Provider:       builtinValue(""),
+			Site:           builtinValue(""),
+			Project:        builtinValue(""),
+			CompanionSkill: builtinValue(""),
 			Auto: TicketsAuto{
 				ChangeCreated:    builtinValue(false),
 				SpecWritten:      builtinValue(false),

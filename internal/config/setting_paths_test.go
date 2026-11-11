@@ -55,7 +55,7 @@ func TestSettingPathsSupportSplit(t *testing.T) {
 		"gate_observation_budget",
 		"board_surfaces", "board.section_order",
 		"change_types", "agent_harnesses",
-		"tickets.provider", "tickets.site", "tickets.project",
+		"tickets.provider", "tickets.site", "tickets.project", "tickets.companion_skill",
 		"tickets.auto.change_created", "tickets.auto.spec_written", "tickets.auto.pr_opened",
 		"tickets.auto.pr_merged", "tickets.auto.results_completed",
 		"agents.*.*.model", "agents.*.*.effort", "agents.*.*.cache_ttl",
