@@ -1,19 +1,19 @@
 ---
 id: 591
 slug: 'follow-the-team-s-own-ticket-skill-for-project-specific-tick'
-title: 'Follow the team''s own ticket skill for project-specific ticket details'
+title: 'Follow a companion skill when creating a ticket'
 status: 'proposed'
 priority: 'medium'
 type: 'feat'
 deliverable: 'pr'
 created: '2026-11-10'
-updated: '2026-11-10'
+updated: '2026-11-11'
 depends_on: [585]
 stacked_on:
-related: [581, 584, 585]
+related: [581, 584, 585, 587]
 discovered_from: [585]
-adrs: []
-spec:
+adrs: [162]
+spec: 'docs/superpowers/specs/2026-11-11-follow-the-team-s-own-ticket-skill-for-project-specific-tick-design.md'
 plan:
 results:
 auto_groomable:
@@ -31,22 +31,33 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-11-11-follow-the-team-s-own-ticket-skill-for-project-specific-tick-design.md](../../superpowers/specs/2026-11-11-follow-the-team-s-own-ticket-skill-for-project-specific-tick-design.md) |
+| ADRs | [ADR-0162](../../adrs/0162-ticket-work-is-two-inline-skills-split-by-attended-linking-v.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-Teams that use a ticket system often already have their own agent skill for their ticket project: the fields their tickets need and those fields' ids, defaults like the current sprint or a team field, a title format, and limits such as making one ticket-system call at a time. Docket's ticket skills know none of this. A ticket docket creates lands with no sprint, no team fields, and not in the team's title format, so someone fixes it by hand; and docket's connector calls can trip a rate limit the team already wrote down.
+Many people who use a ticket system already have an agent skill for their ticket project, from their company, their team, or themselves: a companion skill. It knows the project's title format, which sprint new tickets go into, which custom fields must be set and their ids, the default labels, the ticket type, and limits such as making one ticket-system call at a time. Docket's create path knows none of this. A ticket docket creates lands with the wrong title format, no sprint, no custom fields, and no default labels, and someone fixes it by hand.
 
 ## What changes
 
-When `docket-link-ticket` or `docket-update-ticket` is about to call the ticket system, it checks whether the session has a skill the team wrote for that ticket project. If it does, the docket skill loads it and follows it for project-specific details: required and default field values (such as the current sprint or a team field), the title format, the default ticket type, and how to pace calls. Docket's own rules still decide what gets posted and when: the events, the editorial contract, the readiness check, the draft the person approves, and recording a link only after the connector confirms. When a team skill and a docket rule disagree, docket's rule stands and the agent says so. With no team skill, nothing changes. Docket names no specific team skill and ships no provider- or team-specific metadata.
+When `docket-link-ticket` creates a ticket from a change, it finds the person's companion skill and follows it for project-specific details. A new optional config key, `tickets.companion_skill`, names it at any config layer. When the named skill isn't available, the agent warns in one line and falls back to finding one whose description covers the ticket project. Several matches mean asking the person. No match means creating the ticket as today.
 
-Left to grooming: how the team skill is found (the agent recognizing an installed skill by its description, or a per-repository `tickets.*` key naming it); which side wins where they overlap, notably the ticket type (docket maps it from the change's type, a team skill may default to one type) and the title (docket uses the change's title, a team skill may prescribe a format); and whether anything beyond call pacing applies when posting a comment.
+The companion skill decides:
+- the ticket type, only when it states one;
+- the title format, filled with the change's title;
+- the field values: sprint, custom fields, labels, assignee, and the like;
+- anything it does after the ticket exists;
+- how the calls are made.
+
+Docket keeps the readiness check, the description body, the person's approval of a draft that shows everything the companion skill will do, and recording the link only after the connector confirms. The rule that a created ticket's description is never rewritten is removed: ticket skills may edit the ticket when the work needs it.
 
 ## Acceptance criteria
 
-Both ticket skills say when to look for a team skill, what to take from it, and which docket rules always win; repository tests check that text; with no team skill both skills behave as before; results list an Important live check from another repository that has its own ticket skill.
+`create.md` says when and how to find a companion skill, what it decides, and what docket keeps, and repository tests pin that text. The never-rewritten wording and its test are gone. `tickets.companion_skill` resolves at every config layer and is documented. With the key unset and no matching skill, creating a ticket behaves as before. The results list an Important live check from another repository with a companion skill installed.
 
 ## Out of scope
 
-Naming, shipping, or describing any particular team's skill or its values; syncing sprint, assignee, status, or other ticket fields after creation; provider API code or credentials in docket; any ticket-system call from this repository.
+Using the companion skill when linking, importing, or posting updates (`docket-update-ticket`); naming, shipping, or describing any particular companion skill or its values; syncing ticket fields after creation; provider API code or credentials in docket; any ticket-system call from this repository; unattended ticket creation (change 587 decides how a companion skill behaves there).
