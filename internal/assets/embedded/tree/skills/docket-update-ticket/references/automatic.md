@@ -4,6 +4,7 @@ Loaded from `SKILL.md` when a docket workflow invoked this skill after an event 
 
 - **The caller supplies the change and the event.** Take both from the workflow's direction. Nothing is worked out from a person's words, and no one is mentioned: skip sections 1 and 5.
 - **Never ask and never wait.** Show no draft. Wherever the on-request path would ask the person something, post nothing and report one line.
+- **No startup check of its own.** The calling workflow already ran it: take `metadata_worktree_path` from the caller's `repository.prepare` context. A `refused` or `error` answer from a docket read on this path is never a stop: post nothing, report one line (`Not posted to #<id> (<event>): <reason>.`), and return to the workflow.
 - **Read first.** Run the `context.ticket` read yourself with `--id`, `--event`, and `--json`, as on request, so the update is composed from one pinned commit.
 - **`event.switch` is `false`:** post nothing and say nothing, whatever the caller directed. Check this first, before anything else the read returned.
 - **`ticket.state` is `not-linked`:** post nothing and say nothing.
