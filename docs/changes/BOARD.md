@@ -1,6 +1,6 @@
 # Backlog
 
-**591 changes** — 🟣 1 groomed · 🟡 5 proposed · ⚪ 15 deferred · ✅ 425 done · 🗑️ 145 killed
+**592 changes** — 🟣 1 groomed · 🟡 6 proposed · ⚪ 15 deferred · ✅ 425 done · 🗑️ 145 killed
 
 ## 🟣 Groomed (1)
 
@@ -8,10 +8,11 @@
 |---|-------|----------|------|------|-----------|
 | [0591](active/0591-follow-the-team-s-own-ticket-skill-for-project-specific-tick.md) | Follow a companion skill when creating a ticket | `medium` | `feat` | [spec](../superpowers/specs/2026-11-11-follow-the-team-s-own-ticket-skill-for-project-specific-tick-design.md) | build-ready |
 
-## 🟡 Proposed (5)
+## 🟡 Proposed (6)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0592](active/0592-layer-the-tickets-config-keys-at-every-normal-level-not-just.md) | Layer the tickets.* config keys at every normal level, not just the repo | `medium` | `refactor` | needs-grooming |
 | [0590](active/0590-have-reviewers-check-a-build-against-its-acceptance-criteria.md) | Have reviewers check a build against its acceptance criteria when the change has them | `medium` | `feat` | needs-grooming |
 | [0588](active/0588-update-tickets-automatically-in-a-private-repository.md) | Update tickets automatically in a private repository | `medium` | `feat` | ⏳ waiting on #587 — not yet built |
 | [0587](active/0587-update-tickets-automatically-after-each-event.md) | Update tickets automatically after each event | `medium` | `feat` | needs-grooming |
@@ -63,6 +64,7 @@ graph TD
   0587 --> 0588
   0590
   0585 --> 0591
+  0592
   0192:::done
   0544:::done
   0584:::done
