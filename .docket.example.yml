@@ -250,9 +250,8 @@ change_types: [chore, docs, feat, fix, refactor, perf]
 # (jira, linear, …), `site` names where it lives (tickets.example.com), and `project` names where
 # new tickets go. Each is a single line; empty (the default) means not set.
 #
-# No docket command reads these settings yet, so setting them has no effect today. Linking a
-# change to a ticket does not consult them either: the ticket a change links to, and its tool,
-# are whatever that change's link records.
+# Linking a change to a ticket, and creating one from a change, read these settings and ask for
+# one that is needed and empty.
 #
 # What `project` means, and what kind of ticket each tool creates, depends on the tool:
 #
@@ -268,11 +267,19 @@ change_types: [chore, docs, feat, fix, refactor, perf]
 #
 # The `auto` switches name five events: a change is created, its spec is written, its pull
 # request opens, its pull request merges, or its results are complete. All are off by default,
-# and like the settings above, docket does not act on them yet.
+# and docket does not act on them yet.
 #
-# These settings belong to the repository, except `companion_skill`: any other value in the global
-# config or `.docket.local.yml` is ignored with a warning.
-# scope: repo-only (shared-setting guarded)
+# Like most settings, these can be set in any layer. `provider` and `site` are usually the same for
+# every repository, so the global config suits them. A repository cancels a global value by
+# writing the default here (or in `.docket.local.yml` for one clone):
+#
+#   tickets:
+#     project: ""          # cancels a global project for this repository
+#     auto:
+#       pr_opened: false   # cancels a global true
+#
+# A bare `project:` with nothing after it is not an empty value and is rejected.
+# scope: any layer
 tickets:
   provider: ""
   site: ""
@@ -282,9 +289,7 @@ tickets:
   # team, or yourself), named the way your session's skill list shows it. When a ticket is created
   # from a change, docket follows it for the project's title format, sprint, fields, labels, and
   # ticket type. Empty (the default) means docket looks for a skill whose description covers the
-  # project, and creates the ticket as usual when there is none. Unlike the other ticket settings,
-  # it may be set in the global config, since a skill is usually installed for you rather than for
-  # one repository.
+  # project, and creates the ticket as usual when there is none.
   # scope: any layer
   companion_skill: ""
 

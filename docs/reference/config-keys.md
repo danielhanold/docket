@@ -57,21 +57,28 @@ Each key has one scope:
 | `board.section_order` | `[in-progress, built, blocked, groomed, proposed, deferred]` | any layer | the order of the board's sections |
 | `board.sorting.<section>.by` / `.direction` | `updated` / `desc` | any layer | how each board section is sorted |
 | `change_types` | `[chore, docs, feat, fix, refactor, perf]` | any layer | the types a change can be classified as |
-| `tickets.provider` | `""` (unset) | repo-only | the ticket system this repository's changes link to (jira, linear, …); used when linking or creating a ticket |
-| `tickets.site` | `""` (unset) | repo-only | where that ticket system lives; used when linking a ticket by URL or id |
-| `tickets.project` | `""` (unset) | repo-only | where new tickets go (a project, team, repository, or board, by tool); used when creating a ticket |
+| `tickets.provider` | `""` (unset) | any layer | the ticket system this repository's changes link to (jira, linear, …); used when linking or creating a ticket |
+| `tickets.site` | `""` (unset) | any layer | where that ticket system lives; used when linking a ticket by URL or id |
+| `tickets.project` | `""` (unset) | any layer | where new tickets go (a project, team, repository, or board, by tool); used when creating a ticket |
 | `tickets.companion_skill` | `""` (unset) | any layer | the skill to follow for project-specific details when creating a ticket (title format, sprint, fields, labels, type) |
-| `tickets.auto.change_created` | `false` | repo-only | a switch for when a change is created; no effect yet |
-| `tickets.auto.spec_written` | `false` | repo-only | a switch for when a change's spec is written; no effect yet |
-| `tickets.auto.pr_opened` | `false` | repo-only | a switch for when a change's pull request opens; no effect yet |
-| `tickets.auto.pr_merged` | `false` | repo-only | a switch for when a change's pull request merges; no effect yet |
-| `tickets.auto.results_completed` | `false` | repo-only | a switch for when a change's results are complete; no effect yet |
+| `tickets.auto.change_created` | `false` | any layer | a switch for when a change is created; no effect yet |
+| `tickets.auto.spec_written` | `false` | any layer | a switch for when a change's spec is written; no effect yet |
+| `tickets.auto.pr_opened` | `false` | any layer | a switch for when a change's pull request opens; no effect yet |
+| `tickets.auto.pr_merged` | `false` | any layer | a switch for when a change's pull request merges; no effect yet |
+| `tickets.auto.results_completed` | `false` | any layer | a switch for when a change's results are complete; no effect yet |
 | `agent_harnesses` | none | any layer | the dispatch opt-in (below) |
 | `agents.<harness>.<agent>.model` / `.effort` | the built-in table | global-only | model and effort pins for docket's agents |
 
-**`tickets`** settings are accepted and checked, but no docket command reads them yet, so setting
-them has no effect today. Linking a change to a ticket does not consult them: the ticket a change
-links to, and its tool, are whatever that change's link records.
+**`tickets`** settings are read by `docket-link-ticket` through `docket diagnostic config` when
+you link a change to a ticket or create one from a change: it uses `provider`, `site`, and
+`project`, and asks for one it needs when it is empty. The five `auto` switches are reported by the
+ticket context, but nothing acts on them yet. Each setting can come from any layer, so `provider`
+and `site` can be set once in the global config, and a switch can be tried on one machine in
+`.docket.local.yml`. To cancel a global value for one repository, write the default in
+`.docket.yml` (for everyone) or `.docket.local.yml` (for this clone): `project: ""` for a setting,
+`pr_opened: false` for a switch. A bare `project:` with nothing after it is not an empty value and
+is rejected. A private repository reads the global config and `.git/dckt/config.yml`, so its
+cancel goes in `.git/dckt/config.yml`.
 
 **`agent_harnesses`** opts a repository in to docket's parent-facing dispatch surfaces: the
 managed block in `CLAUDE.md` / `AGENTS.md` and, for Cursor, `.cursor/rules/docket-dispatch.mdc`.

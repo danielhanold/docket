@@ -1735,7 +1735,7 @@ var alignmentContracts = []proseContract{
 		absent: []string{"work with you before posting"}},
 	{sentinel: "change_0585_update_ticket_skill", file: "docs/reference/config-keys.md",
 		present: []string{
-			"| `tickets.provider` | `\"\"` (unset) | repo-only | the ticket system this repository's changes link to (jira, linear, …); used when linking or creating a ticket |",
+			"| `tickets.provider` | `\"\"` (unset) | any layer | the ticket system this repository's changes link to (jira, linear, …); used when linking or creating a ticket |",
 			"; used when linking a ticket by URL or id |",
 			"; used when creating a ticket |",
 		},
@@ -1766,6 +1766,33 @@ var alignmentContracts = []proseContract{
 		absent: []string{"never rewritten", "cannot be rewritten", "written once"}},
 	{sentinel: "change_0591_companion_skill", file: "docs/reference/config-keys.md",
 		present: []string{"| `tickets.companion_skill` | `\"\"` (unset) | any layer |"}},
+	// change 0592 — every tickets.* key layers like any other key, and a repository cancels a global value by writing the default.
+	{sentinel: "change_0592_tickets_any_layer", file: "docs/reference/config-keys.md",
+		present: []string{
+			"| `tickets.site` | `\"\"` (unset) | any layer |",
+			"| `tickets.project` | `\"\"` (unset) | any layer |",
+			"| `tickets.auto.change_created` | `false` | any layer |",
+			"| `tickets.auto.spec_written` | `false` | any layer |",
+			"| `tickets.auto.pr_opened` | `false` | any layer |",
+			"| `tickets.auto.pr_merged` | `false` | any layer |",
+			"| `tickets.auto.results_completed` | `false` | any layer |",
+			"`project: \"\"`",
+			"`pr_opened: false`",
+			".git/dckt/config.yml",
+		},
+		absent: []string{
+			"no docket command reads them yet",
+			"Linking a change to a ticket does not consult them",
+			"| repo-only | the ticket system ",
+			"| repo-only | a switch for ",
+		}},
+	{sentinel: "change_0592_tickets_any_layer", file: ".docket.example.yml",
+		present: []string{"#     project: \"\"", "#       pr_opened: false"},
+		absent: []string{
+			"No docket command reads these settings yet",
+			"These settings belong to the repository",
+			"Unlike the other ticket settings",
+		}},
 }
 
 // oneLayoutAbsent are the retired metadata-layout spellings.
