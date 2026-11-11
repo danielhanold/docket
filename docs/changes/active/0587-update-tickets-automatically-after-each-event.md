@@ -22,7 +22,7 @@ branch_prefix:
 branch: 'feat/update-tickets-automatically-after-each-event'
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -72,3 +72,9 @@ No new operation is needed; the existing ticket read already returns the switch 
 ## Out of scope
 
 Automatic ticket creation, at change creation, at grooming, or anywhere else; automatic updates in a private repository (change 588); confirmation prompts, queues, and retries; automatic updates for revisions, blockers, kills, or changes the sweep closed out; updates to stacked descendants' tickets.
+
+## Reconcile log
+
+### 2026-11-11
+
+Unchanged against `main` 4874f44ea (the spec was traced at that same commit); dependency #585 is done, and `change_created` still appears at the sites the spec names.
