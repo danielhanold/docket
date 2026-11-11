@@ -4,7 +4,7 @@
 
 # Update tickets automatically after each event — design
 
-Change #587, groomed interactively on 2026-11-11. Revised the same day at the person's request to add decision 9, which documents why ticket creation is not automated.
+Change #587, groomed interactively on 2026-11-11. Revised the same day at the person's request to add decision 9, which documents why ticket creation is not automated. Revised again to add the update note on ADR-0162.
 
 ## Intent
 
@@ -260,7 +260,17 @@ Size budgets in `internal/repoguard/budgets_test.go` are raised for each grown f
 
 ## ADR
 
-Record one ADR at build: automatic ticket updates are per-event switches where off means nothing happens, with no queue, ledger, retry, or prompt; a failure is one report line and never a gate; and ticket creation is never automatic. It gives both reasons for that last point as decision 6 states them (creating a ticket is a person's action; there is no clear place for the trigger, stub or groomed change), and names the stub-or-groomed-change alternatives it rejected. It relates to ADR-0044 (call-site directions) and ADR-0162 (the two inline ticket skills). It also states that the update skill now runs inside dispatched and forked agents, and that ADR-0162's remark about forked skills and connector tools does not hold in every harness (decision 8), without rewriting that ADR.
+Record one ADR at build: automatic ticket updates are per-event switches where off means nothing happens, with no queue, ledger, retry, or prompt; a failure is one report line and never a gate; and ticket creation is never automatic. It gives both reasons for that last point as decision 6 states them (creating a ticket is a person's action; there is no clear place for the trigger, stub or groomed change), and names the stub-or-groomed-change alternatives it rejected. It relates to ADR-0044 (call-site directions) and ADR-0162 (the two inline ticket skills). It also states that the update skill now runs inside dispatched and forked agents.
+
+**ADR-0162 is not superseded or reversed.** Its decision stands and this change relies on it: two skills with no wrapper of their own, posting through the running agent's connector tools, with autonomous workflows loading only the update skill. What does not hold is half of one sentence in its Context, "A forked skill cannot reach the session's connector tools or ask the person", which its rejected alternative "A forked or agent-wrapped skill" repeats. The "cannot ask the person" half is still true, and by itself still rules out forking `docket-link-ticket`.
+
+So the build also appends a dated `## Update` note to ADR-0162, using docket-adr's *Update note* action (the one for a decision that stands while its surrounding facts changed). The note says only what was observed, so the later live check cannot make it false:
+
+- on 2026-11-11, in Claude Code, a dispatched general-purpose agent listed the session's ticket connector tools and loaded their schemas; nothing was called, and docket's own agent wrappers were not tried;
+- so "cannot reach the session's connector tools" does not hold in every harness, while "cannot ask the person" does;
+- the decision is unchanged, and the update skill now runs inside dispatched and forked workflow agents (name the new ADR).
+
+No separate change is needed to revisit ADR-0162. If the live check in *Acceptance criteria* finds that docket's own wrappers cannot reach the connector, the results say so under Known issues, and what to do about it is a new decision made then.
 
 ## Acceptance criteria
 
@@ -271,6 +281,7 @@ Record one ADR at build: automatic ticket updates are per-event switches where o
 - A missing connector or failed post is one report line; the run's disposition and every later step are unchanged.
 - The maintenance sweep and a stack root's descendants never get an automatic update.
 - `tickets.auto.change_created` no longer exists in the schema, the sample config, or the docs.
+- ADR-0162 keeps its `Accepted` status and carries a dated update note with the connector finding; the new ADR relates to it.
 - `docs/concepts/tickets.md` exists, is listed in both docs indexes, and explains in detail why docket never creates a ticket by itself: creating a ticket is a person's action, and there is no one right moment to create it (a stub is too early; a groomed change has its own problems). It keeps every point of the draft in decision 9, and `config-keys.md` and the glossary each point to it.
 - The results list an **Important** live check, done by a person from a shared scratch repository against a sandbox ticket project, never from this repository:
   - with each switch on in turn, run the workflow and confirm the comment arrives with working links;
