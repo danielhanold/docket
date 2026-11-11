@@ -2,7 +2,7 @@
 id: 592
 slug: 'layer-the-tickets-config-keys-at-every-normal-level-not-just'
 title: 'Layer the tickets.* config keys at every normal level, not just the repo'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'refactor'
 deliverable: 'pr'
@@ -19,7 +19,7 @@ results:
 auto_groomable:
 hold:
 branch_prefix:
-branch:
+branch: 'refactor/layer-the-tickets-config-keys-at-every-normal-level-not-just'
 pr:
 ticket_provider:
 ticket_id:

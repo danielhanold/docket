@@ -1,12 +1,12 @@
 # Backlog
 
-**592 changes** — 🟣 1 groomed · 🟡 5 proposed · ⚪ 15 deferred · ✅ 426 done · 🗑️ 145 killed
+**592 changes** — 🟢 1 in progress · 🟡 5 proposed · ⚪ 15 deferred · ✅ 426 done · 🗑️ 145 killed
 
-## 🟣 Groomed (1)
+## 🟢 In progress (1)
 
-| # | Title | Priority | Type | Spec | Readiness |
-|---|-------|----------|------|------|-----------|
-| [0592](active/0592-layer-the-tickets-config-keys-at-every-normal-level-not-just.md) | Layer the tickets.* config keys at every normal level, not just the repo | `medium` | `refactor` | [spec](../superpowers/specs/2026-11-11-layer-the-tickets-config-keys-at-every-normal-level-not-just-design.md) | build-ready |
+| # | Title | Priority | Type | Spec | Branch | State |
+|---|-------|----------|------|------|--------|-------|
+| [0592](active/0592-layer-the-tickets-config-keys-at-every-normal-level-not-just.md) | Layer the tickets.* config keys at every normal level, not just the repo | `medium` | `refactor` | [spec](../superpowers/specs/2026-11-11-layer-the-tickets-config-keys-at-every-normal-level-not-just-design.md) | `refactor/layer-the-tickets-config-keys-at-every-normal-level-not-just` | building |
 
 ## 🟡 Proposed (5)
 
