@@ -2,7 +2,7 @@
 id: 591
 slug: 'follow-the-team-s-own-ticket-skill-for-project-specific-tick'
 title: 'Follow a companion skill when creating a ticket'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'feat'
 deliverable: 'pr'
@@ -20,7 +20,7 @@ auto_groomable:
 hold:
 branch_prefix:
 branch: 'feat/follow-the-team-s-own-ticket-skill-for-project-specific-tick'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/455'
 ticket_provider:
 ticket_id:
 ticket_url:
@@ -69,3 +69,12 @@ Using the companion skill when linking, importing, or posting updates (`docket-u
 ### 2026-11-11
 
 Unchanged against main 448b8be92: create.md still carries the never-rewritten wording in steps 8 and 9, the tickets.* schema leaves are unchanged, and dependency 585 is done. The recent docket export command split touches create.md step 5 only, outside this scope.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: bd2cbdcbaf279b83c853d8b098f6550eede5d55d
+ran_at:   2026-11-11T02:04:59Z
+<!-- docket:build-evidence:end -->
