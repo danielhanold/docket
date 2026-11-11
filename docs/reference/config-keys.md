@@ -60,6 +60,7 @@ Each key has one scope:
 | `tickets.provider` | `""` (unset) | repo-only | the ticket system this repository's changes link to (jira, linear, …); used when linking or creating a ticket |
 | `tickets.site` | `""` (unset) | repo-only | where that ticket system lives; used when linking a ticket by URL or id |
 | `tickets.project` | `""` (unset) | repo-only | where new tickets go (a project, team, repository, or board, by tool); used when creating a ticket |
+| `tickets.companion_skill` | `""` (unset) | any layer | the skill to follow for project-specific details when creating a ticket (title format, sprint, fields, labels, type) |
 | `tickets.auto.change_created` | `false` | repo-only | a switch for when a change is created; no effect yet |
 | `tickets.auto.spec_written` | `false` | repo-only | a switch for when a change's spec is written; no effect yet |
 | `tickets.auto.pr_opened` | `false` | repo-only | a switch for when a change's pull request opens; no effect yet |

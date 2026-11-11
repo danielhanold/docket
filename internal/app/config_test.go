@@ -909,6 +909,7 @@ func TestConfigDiagnosticsTicketsSurface(t *testing.T) {
 		"tickets.provider = (unset)  [built-in]",
 		"tickets.site = (unset)  [built-in]",
 		"tickets.project = (unset)  [built-in]",
+		"tickets.companion_skill = (unset)  [built-in]",
 		"tickets.auto.change_created = false  [built-in]",
 		"tickets.auto.spec_written = false  [built-in]",
 		"tickets.auto.pr_opened = false  [built-in]",
@@ -925,6 +926,7 @@ func TestConfigDiagnosticsTicketsSurface(t *testing.T) {
 
 	src := []config.Source{{Layer: config.LayerRepository, Name: ".docket.yml", Data: []byte(
 		"tickets:\n  provider: jira\n  site: tickets.example.com\n  project: CLOUD\n" +
+			"  companion_skill: team-tickets\n" +
 			"  auto:\n    change_created: true\n    spec_written: true\n    pr_opened: true\n" +
 			"    pr_merged: true\n    results_completed: true\n")}}
 	r := DiagnosticConfig(src, mainCtx(), false)
@@ -933,6 +935,7 @@ func TestConfigDiagnosticsTicketsSurface(t *testing.T) {
 	}
 	tk := r.Effective.Tickets
 	if tk.Provider.Value != "jira" || tk.Site.Value != "tickets.example.com" || tk.Project.Value != "CLOUD" ||
+		tk.CompanionSkill.Value != "team-tickets" ||
 		!tk.Auto.ChangeCreated.Value || !tk.Auto.SpecWritten.Value || !tk.Auto.PROpened.Value ||
 		!tk.Auto.PRMerged.Value || !tk.Auto.ResultsCompleted.Value {
 		t.Errorf("effective tickets = %+v, want every declared value", tk)
@@ -942,6 +945,7 @@ func TestConfigDiagnosticsTicketsSurface(t *testing.T) {
 		"tickets.provider = jira  [repository .docket.yml:2]",
 		"tickets.site = tickets.example.com",
 		"tickets.project = CLOUD",
+		"tickets.companion_skill = team-tickets",
 		"tickets.auto.change_created = true",
 		"tickets.auto.spec_written = true",
 		"tickets.auto.pr_opened = true",
@@ -956,7 +960,7 @@ func TestConfigDiagnosticsTicketsSurface(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`"tickets":`, `"provider":`, `"auto":`, `"change_created":`, `"results_completed":`} {
+	for _, want := range []string{`"tickets":`, `"provider":`, `"companion_skill":`, `"auto":`, `"change_created":`, `"results_completed":`} {
 		if !strings.Contains(string(raw), want) {
 			t.Errorf("effective JSON lacks %s: %s", want, raw)
 		}

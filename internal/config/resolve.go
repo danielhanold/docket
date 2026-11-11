@@ -333,6 +333,7 @@ func (r *resolution) assemble(byLayer map[LayerKind]map[string]leafDecl) (Effect
 	set(assign(&eff.Tickets.Provider, r.declared, "tickets.provider"))
 	set(assign(&eff.Tickets.Site, r.declared, "tickets.site"))
 	set(assign(&eff.Tickets.Project, r.declared, "tickets.project"))
+	set(assign(&eff.Tickets.CompanionSkill, r.declared, "tickets.companion_skill"))
 	set(assign(&eff.Tickets.Auto.ChangeCreated, r.declared, "tickets.auto.change_created"))
 	set(assign(&eff.Tickets.Auto.SpecWritten, r.declared, "tickets.auto.spec_written"))
 	set(assign(&eff.Tickets.Auto.PROpened, r.declared, "tickets.auto.pr_opened"))

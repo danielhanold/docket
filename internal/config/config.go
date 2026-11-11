@@ -147,12 +147,15 @@ type Effective struct {
 }
 
 // Tickets names the repository's ticket system and where new tickets go, plus
-// the per-event automation switches. Every leaf is repository-only.
+// the per-event automation switches. Every leaf is repository-only except
+// CompanionSkill, which may be set at any layer because it names the person's
+// own tooling (the skill to follow when creating a ticket), not the repository.
 type Tickets struct {
-	Provider Value[string] `json:"provider"`
-	Site     Value[string] `json:"site"`
-	Project  Value[string] `json:"project"`
-	Auto     TicketsAuto   `json:"auto"`
+	Provider       Value[string] `json:"provider"`
+	Site           Value[string] `json:"site"`
+	Project        Value[string] `json:"project"`
+	CompanionSkill Value[string] `json:"companion_skill"`
+	Auto           TicketsAuto   `json:"auto"`
 }
 
 // TicketsAuto holds the switches that let docket act on a linked ticket on

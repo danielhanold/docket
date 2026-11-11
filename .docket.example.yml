@@ -270,13 +270,24 @@ change_types: [chore, docs, feat, fix, refactor, perf]
 # request opens, its pull request merges, or its results are complete. All are off by default,
 # and like the settings above, docket does not act on them yet.
 #
-# These settings belong to the repository: a value in the global config or `.docket.local.yml` is
-# ignored with a warning.
+# These settings belong to the repository, except `companion_skill`: any other value in the global
+# config or `.docket.local.yml` is ignored with a warning.
 # scope: repo-only (shared-setting guarded)
 tickets:
   provider: ""
   site: ""
   project: ""
+
+  # companion_skill — a skill you already have for your ticket project (from your company, your
+  # team, or yourself), named the way your session's skill list shows it. When a ticket is created
+  # from a change, docket follows it for the project's title format, sprint, fields, labels, and
+  # ticket type. Empty (the default) means docket looks for a skill whose description covers the
+  # project, and creates the ticket as usual when there is none. Unlike the other ticket settings,
+  # it may be set in the global config, since a skill is usually installed for you rather than for
+  # one repository.
+  # scope: any layer
+  companion_skill: ""
+
   auto:
     change_created: false
     spec_written: false

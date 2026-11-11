@@ -109,6 +109,8 @@ func effectiveLeaf(t *testing.T, eff Effective, path string) (any, Provenance, b
 		return eff.Tickets.Site.Value, eff.Tickets.Site.Provenance, eff.Tickets.Site.Explicit
 	case "tickets.project":
 		return eff.Tickets.Project.Value, eff.Tickets.Project.Provenance, eff.Tickets.Project.Explicit
+	case "tickets.companion_skill":
+		return eff.Tickets.CompanionSkill.Value, eff.Tickets.CompanionSkill.Provenance, eff.Tickets.CompanionSkill.Explicit
 	case "tickets.auto.change_created":
 		return eff.Tickets.Auto.ChangeCreated.Value, eff.Tickets.Auto.ChangeCreated.Provenance, eff.Tickets.Auto.ChangeCreated.Explicit
 	case "tickets.auto.spec_written":
@@ -697,6 +699,7 @@ func TestTicketsStringSingleLine(t *testing.T) {
 		"tickets:\n  site: \"a\\nb\"\n",
 		"tickets:\n  project: \"a\\rb\"\n",
 		"tickets:\n  provider: \"jira\\n\"\n",
+		"tickets:\n  companion_skill: \"a\\nb\"\n",
 	} {
 		_, diags := decodeDoc(t, doc)
 		if len(diags) != 1 || diags[0].Code != CodeInvalidValue {
@@ -1515,6 +1518,50 @@ func TestOpenArtifactsIsAnOrdinaryLayeredKey(t *testing.T) {
 				t.Errorf("unexpected diagnostic %s/%s/%s", d.Severity, d.Code, d.Path)
 			}
 		}
+	}
+}
+
+// TestTicketsCompanionSkillAnyLayer pins tickets.companion_skill as the one
+// ticket leaf settable at any layer (change 0591): it names the person's own
+// tooling, so a global or local declaration is honoured with ordinary
+// precedence and never draws the shared-setting warning its repo-only
+// siblings get, even when declared in the same block.
+func TestTicketsCompanionSkillAnyLayer(t *testing.T) {
+	doc := func(v string) string { return "tickets:\n  companion_skill: " + v + "\n" }
+	if v := mustSnapshot(t).Effective.Tickets.CompanionSkill; v.Value != "" || v.Provenance.Layer != LayerBuiltIn || v.Explicit {
+		t.Fatalf("default = %+v, want non-explicit built-in empty", v)
+	}
+	for _, tc := range []struct {
+		name    string
+		sources []Source
+		want    string
+		layer   LayerKind
+	}{
+		{"global", []Source{srcG(doc("a"))}, "a", LayerGlobal},
+		{"local", []Source{srcL(doc("a"))}, "a", LayerRepositoryLocal},
+		{"repository over global", []Source{srcG(doc("a")), srcR(doc("b"))}, "b", LayerRepository},
+		{"local over repository", []Source{srcR(doc("b")), srcL(doc("c"))}, "c", LayerRepositoryLocal},
+		{"local over global", []Source{srcG(doc("a")), srcL(doc("c"))}, "c", LayerRepositoryLocal},
+	} {
+		snap := mustSnapshot(t, tc.sources...)
+		if v := snap.Effective.Tickets.CompanionSkill; v.Value != tc.want || v.Provenance.Layer != tc.layer || !v.Explicit {
+			t.Errorf("%s: companion_skill = %+v, want explicit %q from %q", tc.name, v, tc.want, tc.layer)
+		}
+		if diagPathSet(snap, CodeSharedSettingIgnored)["tickets.companion_skill"] {
+			t.Errorf("%s: companion_skill drew %s", tc.name, CodeSharedSettingIgnored)
+		}
+	}
+
+	snap := mustSnapshot(t, srcG("tickets:\n  provider: jira\n  companion_skill: team-tickets\n"))
+	ignored := diagPathSet(snap, CodeSharedSettingIgnored)
+	if !ignored["tickets.provider"] || snap.Effective.Tickets.Provider.Value != "" {
+		t.Errorf("mixed block: provider = %+v, ignored=%v; want the global provider warned about and dropped", snap.Effective.Tickets.Provider, ignored)
+	}
+	if ignored["tickets.companion_skill"] {
+		t.Errorf("mixed block: companion_skill drew %s", CodeSharedSettingIgnored)
+	}
+	if v := snap.Effective.Tickets.CompanionSkill; v.Value != "team-tickets" || v.Provenance.Layer != LayerGlobal || !v.Explicit {
+		t.Errorf("mixed block: companion_skill = %+v, want explicit team-tickets from global", v)
 	}
 }
 
