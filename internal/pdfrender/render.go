@@ -77,8 +77,20 @@ func (w *walker) block(n ast.Node) {
 		w.children(n)
 	case *ast.Heading:
 		w.heading(n)
-	case *ast.Paragraph, *ast.TextBlock:
+	case *ast.Paragraph:
 		w.para(w.inlines(n, bodyStyle))
+	case *ast.TextBlock:
+		// A tight list item's text: closer to its neighbours than a paragraph.
+		w.l.gap(bodySize * 0.25)
+		w.l.paragraph(w.inlines(n, bodyStyle), bodySize)
+	case *ast.List:
+		w.list(n)
+	case *ast.Blockquote:
+		w.blockquote(n)
+	case *ast.FencedCodeBlock, *ast.CodeBlock:
+		w.codeBlock(n)
+	case *ast.HTMLBlock:
+		w.literalLines(n)
 	case *ast.ThematicBreak:
 		w.l.gap(bodySize * 0.3)
 		w.l.rule()
@@ -89,8 +101,8 @@ func (w *walker) block(n ast.Node) {
 
 // fallback draws a block kind that has no dedicated rendering as plain
 // paragraphs of its text: a block of inline content as one paragraph, a
-// container through its children, and a block of raw lines (code, HTML) as
-// one paragraph with a hard break between lines.
+// container through its children, and a block of raw lines as one paragraph
+// with a hard break between lines.
 func (w *walker) fallback(n ast.Node) {
 	if n.Type() != ast.TypeBlock {
 		return
@@ -103,25 +115,7 @@ func (w *walker) fallback(n ast.Node) {
 		w.children(n)
 		return
 	}
-	var lines []string
-	segs := n.Lines()
-	for i := 0; i < segs.Len(); i++ {
-		seg := segs.At(i)
-		lines = append(lines, string(seg.Value(w.src)))
-	}
-	if h, ok := n.(*ast.HTMLBlock); ok && h.HasClosure() {
-		lines = append(lines, string(h.ClosureLine.Value(w.src)))
-	}
-	var runs []run
-	for i, s := range lines {
-		if i > 0 {
-			runs = append(runs, run{hard: true, st: bodyStyle})
-		}
-		runs = append(runs, run{text: strings.TrimRight(s, "\r\n"), st: bodyStyle})
-	}
-	if len(runs) > 0 {
-		w.para(runs)
-	}
+	w.literalLines(n)
 }
 
 func (w *walker) para(runs []run) {
@@ -223,11 +217,8 @@ func (w *walker) inline(n ast.Node, st style, out []run) []run {
 		}
 		return append(out, run{text: b.String(), st: st})
 	case *extast.TaskCheckBox:
-		box := "☐ "
-		if n.IsChecked {
-			box = "☑ "
-		}
-		return append(out, run{text: box, st: st})
+		// Drawn by list in place of the item's bullet.
+		return out
 	}
 	// Links draw their text and images their alt text: both are children.
 	return append(out, w.inlines(n, st)...)

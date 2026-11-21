@@ -37,6 +37,13 @@ type layout struct {
 	left, right  float64
 	indents      []float64
 	placeholders int
+
+	// markers are list markers waiting for the next line drawn; bars are
+	// the open blockquotes' left rules; bottom is the bottom of the last
+	// thing drawn on this page. See startLine in blocks.go.
+	markers []marker
+	bars    []bar
+	bottom  float64
 }
 
 // newLayout starts the first page.
@@ -49,8 +56,10 @@ func newLayout(c canvas) *layout {
 // newPage starts a page, draws its footer, and moves to the top of its text
 // area.
 func (l *layout) newPage() {
+	l.closeBars()
 	l.c.newPage()
 	l.y = textTop
+	l.bottom = textTop
 	s := strconv.Itoa(l.c.pageNo())
 	w := l.c.measure(faceSans, footerSize, s)
 	l.c.text((pageWidth-w)/2, footerY, faceSans, footerSize, s)
@@ -75,9 +84,14 @@ func (l *layout) gap(h float64) {
 	}
 }
 
-// pushIndent moves the left edge of the text box right by dx until the
-// matching popIndent.
+// minBoxWidth is the narrowest the text box gets: indentation past it is
+// ignored, so deep nesting cannot squeeze text into nothing.
+const minBoxWidth = 144.0
+
+// pushIndent moves the left edge of the text box right by dx, never leaving
+// it narrower than minBoxWidth, until the matching popIndent.
 func (l *layout) pushIndent(dx float64) {
+	dx = max(0, min(dx, l.right-minBoxWidth-l.left))
 	l.indents = append(l.indents, dx)
 	l.left += dx
 }
@@ -260,6 +274,7 @@ func (l *layout) drawLine(line []piece, size float64) {
 	}
 	lh := maxSize * lineFactor
 	l.ensure(lh)
+	l.startLine(maxSize)
 
 	var merged []piece
 	for _, p := range line {
@@ -300,13 +315,16 @@ func (l *layout) drawLine(line []piece, size float64) {
 		}
 	}
 	l.y += lh
+	l.bottom = l.y
 }
 
 // rule draws a thematic break: a horizontal line across the text box.
 func (l *layout) rule() {
 	h := bodySize * lineFactor
 	l.ensure(h)
+	l.startLine(bodySize)
 	mid := l.y + h/2
 	l.c.line(l.left, mid, l.right, mid, 0.6, ruleGray)
 	l.y += h
+	l.bottom = l.y
 }
