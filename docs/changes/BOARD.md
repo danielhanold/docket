@@ -1,12 +1,12 @@
 # Backlog
 
-**594 changes** — 🟣 1 groomed · 🟡 5 proposed · ⚪ 15 deferred · ✅ 428 done · 🗑️ 145 killed
+**594 changes** — 🟢 1 in progress · 🟡 5 proposed · ⚪ 15 deferred · ✅ 428 done · 🗑️ 145 killed
 
-## 🟣 Groomed (1)
+## 🟢 In progress (1)
 
-| # | Title | Priority | Type | Spec | Readiness |
-|---|-------|----------|------|------|-----------|
-| [0594](active/0594-export-as-pdf-alongside-markdown-docket-export-format.md) | Export as PDF alongside Markdown: docket export --format | `medium` | `feat` | [spec](../superpowers/specs/2026-11-21-export-as-pdf-alongside-markdown-docket-export-format-design.md) | build-ready |
+| # | Title | Priority | Type | Spec | Branch | State |
+|---|-------|----------|------|------|--------|-------|
+| [0594](active/0594-export-as-pdf-alongside-markdown-docket-export-format.md) | Export as PDF alongside Markdown: docket export --format | `medium` | `feat` | [spec](../superpowers/specs/2026-11-21-export-as-pdf-alongside-markdown-docket-export-format-design.md) | `feat/export-as-pdf-alongside-markdown-docket-export-format` | building |
 
 ## 🟡 Proposed (5)
 

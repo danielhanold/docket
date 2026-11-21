@@ -2,7 +2,7 @@
 id: 594
 slug: 'export-as-pdf-alongside-markdown-docket-export-format'
 title: 'Export as PDF alongside Markdown: docket export --format'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'feat'
 deliverable: 'pr'
@@ -19,7 +19,7 @@ results:
 auto_groomable:
 hold:
 branch_prefix:
-branch:
+branch: 'feat/export-as-pdf-alongside-markdown-docket-export-format'
 pr:
 ticket_provider:
 ticket_id:
