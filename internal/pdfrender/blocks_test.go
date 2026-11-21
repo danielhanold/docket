@@ -78,8 +78,8 @@ func TestRenderTaskList(t *testing.T) {
 	if checked.y != done.y || checked.x >= done.x {
 		t.Errorf("☑ %+v is not before done %+v", checked, done)
 	}
-	if open.f != faceSans || checked.f != faceSans {
-		t.Errorf("boxes drawn in faces %v/%v, want faceSans", open.f, checked.f)
+	if open.f != faceFallback || checked.f != faceFallback {
+		t.Errorf("boxes drawn in faces %v/%v, want faceFallback", open.f, checked.f)
 	}
 	all := texts(r)
 	if strings.Contains(all, "[ ]") || strings.Contains(all, "[x]") {

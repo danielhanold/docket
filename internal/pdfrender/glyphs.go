@@ -43,8 +43,7 @@ func (st style) primary() face {
 	return faceSans
 }
 
-// sans is the style's upright DejaVu Sans face, which draws Placeholder and
-// backs up the mono faces.
+// sans is the style's upright Inter face, which backs up the mono faces.
 func (st style) sans() face {
 	if st.bold {
 		return faceSansBold
@@ -71,7 +70,8 @@ func dropped(r rune) bool {
 }
 
 // faceFor picks the first face that can draw r in st: the style's primary
-// face, then (for mono) the matching DejaVu Sans face, then Noto Emoji.
+// face, then (for mono) the matching upright Inter face, then DejaVu Sans,
+// then Noto Emoji.
 // Every face it returns covers r, and covers is false above U+FFFF, so no
 // rune above U+FFFF is ever given a face.
 func faceFor(r rune, st style) (face, bool) {
@@ -83,6 +83,9 @@ func faceFor(r rune, st style) (face, bool) {
 			return f, true
 		}
 	}
+	if faceFallback.covers(r) {
+		return faceFallback, true
+	}
 	if faceEmoji.covers(r) {
 		return faceEmoji, true
 	}
@@ -93,7 +96,7 @@ func faceFor(r rune, st style) (face, bool) {
 // of adjacent runes drawn in the same face. Invisibles (see dropped) vanish.
 // Tab and newline become a space: no face draws them, and callers that need
 // tabs expanded do it first. Any other rune no face can draw becomes
-// Placeholder, drawn in the style's sans face, and is counted. Invalid UTF-8
+// Placeholder, drawn in DejaVu Sans, and is counted. Invalid UTF-8
 // decodes to U+FFFD and is resolved like any other rune.
 //
 // This is the only path text takes to the canvas, so every piece is valid
@@ -116,7 +119,7 @@ func resolve(s string, st style) (pieces []piece, placeholders int) {
 		}
 		f, ok := faceFor(r, st)
 		if !ok {
-			f, r = st.sans(), Placeholder
+			f, r = faceFallback, Placeholder
 			placeholders++
 		}
 		if f != cur {

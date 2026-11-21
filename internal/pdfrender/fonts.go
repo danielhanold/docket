@@ -18,7 +18,10 @@ const Placeholder = '□'
 //go:embed fonts/*.ttf fonts/*.txt
 var fontFS embed.FS
 
-// face is one embedded font file.
+// face is one embedded font file. The sans faces are Inter, whose bold is
+// its SemiBold (weight 600) cut; the mono faces are JetBrains Mono; DejaVu
+// Sans draws the symbols Inter and JetBrains Mono lack, and Noto Emoji the
+// emoji no other face has.
 type face int
 
 const (
@@ -28,23 +31,25 @@ const (
 	faceSansBoldOblique
 	faceMono
 	faceMonoBold
+	faceFallback
 	faceEmoji
 )
 
 // allFaces lists every face, in declaration order.
-var allFaces = []face{faceSans, faceSansBold, faceSansOblique, faceSansBoldOblique, faceMono, faceMonoBold, faceEmoji}
+var allFaces = []face{faceSans, faceSansBold, faceSansOblique, faceSansBoldOblique, faceMono, faceMonoBold, faceFallback, faceEmoji}
 
 type faceInfo struct {
 	file, family, style string
 }
 
 var faceInfos = [...]faceInfo{
-	faceSans:            {"DejaVuSans.ttf", "dejavu", ""},
-	faceSansBold:        {"DejaVuSans-Bold.ttf", "dejavu", "B"},
-	faceSansOblique:     {"DejaVuSans-Oblique.ttf", "dejavu", "I"},
-	faceSansBoldOblique: {"DejaVuSans-BoldOblique.ttf", "dejavu", "BI"},
-	faceMono:            {"DejaVuSansMono.ttf", "dejavumono", ""},
-	faceMonoBold:        {"DejaVuSansMono-Bold.ttf", "dejavumono", "B"},
+	faceSans:            {"Inter-Regular.ttf", "inter", ""},
+	faceSansBold:        {"Inter-SemiBold.ttf", "inter", "B"},
+	faceSansOblique:     {"Inter-Italic.ttf", "inter", "I"},
+	faceSansBoldOblique: {"Inter-SemiBoldItalic.ttf", "inter", "BI"},
+	faceMono:            {"JetBrainsMono-Regular.ttf", "jetbrainsmono", ""},
+	faceMonoBold:        {"JetBrainsMono-SemiBold.ttf", "jetbrainsmono", "B"},
+	faceFallback:        {"DejaVuSans.ttf", "dejavu", ""},
 	faceEmoji:           {"NotoEmoji-Regular.ttf", "notoemoji", ""},
 }
 
