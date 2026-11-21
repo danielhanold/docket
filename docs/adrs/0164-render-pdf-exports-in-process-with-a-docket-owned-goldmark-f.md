@@ -2,7 +2,7 @@
 id: 164
 slug: 'render-pdf-exports-in-process-with-a-docket-owned-goldmark-f'
 title: 'Render PDF exports in-process with a docket-owned goldmark + fpdf renderer and embedded fonts'
-status: 'Accepted'
+status: 'Superseded by ADR-0165'
 date: '2026-11-21'
 supersedes: []
 reverses: []

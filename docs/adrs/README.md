@@ -145,7 +145,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0161](0161-ticket-fields-are-three-flat-stored-scalars-and-issue-is-ret.md) — Ticket fields are three flat stored scalars, and `issue:` is retired (Accepted) ← change #583 · relates to ADR-0071, ADR-0019
 - [ADR-0162](0162-ticket-work-is-two-inline-skills-split-by-attended-linking-v.md) — Ticket work is two inline skills, split by attended linking versus updating (Accepted) ← change #584 · relates to ADR-0161, ADR-0044
 - [ADR-0163](0163-automatic-ticket-updates-are-per-event-switches-ticket-creat.md) — Automatic ticket updates are per-event switches; ticket creation is never automatic (Accepted) ← change #587 · relates to ADR-0044, ADR-0162
-- [ADR-0164](0164-render-pdf-exports-in-process-with-a-docket-owned-goldmark-f.md) — Render PDF exports in-process with a docket-owned goldmark + fpdf renderer and embedded fonts (Accepted) ← change #594
+- [ADR-0165](0165-render-pdf-exports-in-process-with-inter-jetbrains-mono-and.md) — Render PDF exports in-process with Inter, JetBrains Mono, and GitHub-weight headings (Accepted) ← change #594 → supersedes ADR-0164
 
 ## Superseded / Reversed
 
@@ -167,6 +167,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0117](0117-sequential-test-drives-within-one-worker-recovery-scope.md) — Sequential test drives within one worker recovery scope (Superseded by ADR-0130) ← change #405 · relates to ADR-0107
 - [ADR-0118](0118-worktree-wide-gate-admission-and-explicit-human-cancellation.md) — Worktree-wide gate admission and explicit human-cancellation authority (Superseded by ADR-0132) ← change #375 · relates to ADR-0087, ADR-0095, ADR-0107, ADR-0111, ADR-0117
 - [ADR-0159](0159-claim-lease-stamped-only-at-claim-reconcile-and-resume-halte.md) — Claim lease stamped only at claim, reconcile, and resume-halted; refresh-claim deleted (Superseded by ADR-0160) ← change #360 · relates to ADR-0158
+- [ADR-0164](0164-render-pdf-exports-in-process-with-a-docket-owned-goldmark-f.md) — Render PDF exports in-process with a docket-owned goldmark + fpdf renderer and embedded fonts (Superseded by ADR-0165) ← change #594
 
 ## Deprecated
 
