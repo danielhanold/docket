@@ -1,11 +1,12 @@
 # Backlog
 
-**593 changes** — 🟡 5 proposed · ⚪ 15 deferred · ✅ 428 done · 🗑️ 145 killed
+**594 changes** — 🟡 6 proposed · ⚪ 15 deferred · ✅ 428 done · 🗑️ 145 killed
 
-## 🟡 Proposed (5)
+## 🟡 Proposed (6)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0594](active/0594-export-as-pdf-alongside-markdown-docket-export-format.md) | Export as PDF alongside Markdown: docket export --format | `medium` | `feat` | needs-grooming |
 | [0593](active/0593-fix-two-glossary-entries-for-automatic-ticket-updates.md) | Fix two glossary entries for automatic ticket updates | `low` | `docs` | needs-grooming |
 | [0588](active/0588-update-tickets-automatically-in-a-private-repository.md) | Update tickets automatically in a private repository | `medium` | `feat` | needs-grooming |
 | [0590](active/0590-have-reviewers-check-a-build-against-its-acceptance-criteria.md) | Have reviewers check a build against its acceptance criteria when the change has them | `medium` | `feat` | needs-grooming |
@@ -55,6 +56,7 @@ graph TD
   0587 --> 0588
   0590
   0593
+  0594
   0192:::done
   0544:::done
   0586:::done
