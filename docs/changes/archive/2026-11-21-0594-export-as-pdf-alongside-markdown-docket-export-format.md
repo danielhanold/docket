@@ -2,7 +2,7 @@
 id: 594
 slug: 'export-as-pdf-alongside-markdown-docket-export-format'
 title: 'Export as PDF alongside Markdown: docket export --format'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'feat'
 deliverable: 'pr'
@@ -34,6 +34,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-11-21-export-as-pdf-alongside-markdown-docket-export-format-design.md](../../superpowers/specs/2026-11-21-export-as-pdf-alongside-markdown-docket-export-format-design.md) |
+| Spec (merged) | [2026-11-21-export-as-pdf-alongside-markdown-docket-export-format-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-11-21-export-as-pdf-alongside-markdown-docket-export-format-design.md) |
 | Plan | [2026-11-20-export-as-pdf-alongside-markdown-docket-export-format.md](../../superpowers/plans/2026-11-20-export-as-pdf-alongside-markdown-docket-export-format.md) |
 | Results | [2026-11-20-export-as-pdf-alongside-markdown-docket-export-format-results.md](../../results/2026-11-20-export-as-pdf-alongside-markdown-docket-export-format-results.md) |
 | ADRs | [ADR-0164](../../adrs/0164-render-pdf-exports-in-process-with-a-docket-owned-goldmark-f.md) |

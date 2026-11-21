@@ -1,12 +1,6 @@
 # Backlog
 
-**594 changes** — 🔵 1 built · 🟡 5 proposed · ⚪ 15 deferred · ✅ 428 done · 🗑️ 145 killed
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0594](active/0594-export-as-pdf-alongside-markdown-docket-export-format.md) | Export as PDF alongside Markdown: docket export --format | `medium` | `feat` | [#458](https://github.com/danielhanold/docket/pull/458) | awaiting merge |
+**594 changes** — 🟡 5 proposed · ⚪ 15 deferred · ✅ 429 done · 🗑️ 145 killed
 
 ## 🟡 Proposed (5)
 
@@ -61,7 +55,6 @@ graph TD
   0587 --> 0588
   0590
   0593
-  0594
   0192:::done
   0544:::done
   0586:::done
@@ -69,10 +62,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (573)</summary>
+<details><summary>✅🗑️ Archive — done + killed (574)</summary>
 
 | # | Title | Closed |
 |---|-------|--------|
+| [0594](archive/2026-11-21-0594-export-as-pdf-alongside-markdown-docket-export-format.md) | Export as PDF alongside Markdown: docket export --format | 2026-11-21 |
 | [0592](archive/2026-11-11-0592-layer-the-tickets-config-keys-at-every-normal-level-not-just.md) | Layer the tickets.* config keys at every normal level, not just the repo | 2026-11-11 |
 | [0591](archive/2026-11-11-0591-follow-the-team-s-own-ticket-skill-for-project-specific-tick.md) | Follow a companion skill when creating a ticket | 2026-11-11 |
 | [0587](archive/2026-11-11-0587-update-tickets-automatically-after-each-event.md) | Update tickets automatically after each event | 2026-11-11 |
@@ -88,7 +82,6 @@ graph TD
 | [0580](archive/2026-10-28-0580-release-v1-0-0-stable-release-with-version-free-install-docs.md) | Release v1.0.0: stable release with version-free install docs | 2026-10-28 |
 | [0579](archive/2026-10-23-0579-release-v1-0-0-rc-2-the-changes-since-rc-1-published-as-the.md) | Release v1.0.0-rc.2: the changes since rc.1, published as the build to test | 2026-10-23 |
 | [0578](archive/2026-10-23-0578-invoke-the-artifact-export-from-an-agent-session.md) | Invoke the artifact export from an agent session | 2026-10-23 |
-| [0577](archive/2026-10-22-0577-fix-duplicate-originhasbranch-breaking-combined-tag-go-vet.md) | Fix duplicate originHasBranch breaking combined-tag go vet | 2026-10-22 |
 | [0564](archive/2026-10-17-0564-check-groom-patch-overlap-on-records-without-updated-or-auto.md) | Check groom patch overlap on records without updated or auto_groomable | 2026-10-17 |
 | [0541](archive/2026-10-17-0541-the-implement-next-child-can-claim-without-run-context-so-a.md) | The implement-next child can claim without --run-context, so a tracked run loses attribution | 2026-10-17 |
 | [0345](archive/2026-10-16-0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | 2026-10-16 |
@@ -238,7 +231,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-10](archive/) | 85 done |
+| [2026-10](archive/) | 86 done |
 | [2026-09](archive/) | 92 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |

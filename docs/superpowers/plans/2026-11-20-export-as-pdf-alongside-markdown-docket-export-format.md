@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0594 — Export as PDF alongside Markdown: docket export --format](../../changes/active/0594-export-as-pdf-alongside-markdown-docket-export-format.md)**
+> ↩ **[Change 0594 — Export as PDF alongside Markdown: docket export --format](../../changes/archive/2026-11-21-0594-export-as-pdf-alongside-markdown-docket-export-format.md)**
 <!-- docket:backlink:end -->
 
 # `docket export --format`: PDF alongside Markdown — Implementation Plan
