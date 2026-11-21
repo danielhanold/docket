@@ -178,19 +178,25 @@ func (l *layout) paragraph(runs []run, size float64) {
 	l.flow(l.words(runs), size)
 }
 
-// flow fills lines greedily. A word that does not fit goes to the next line;
-// a word wider than a whole line is split by rune.
+// flow fills lines greedily across the text box and draws them.
+func (l *layout) flow(ws []word, size float64) {
+	l.wrap(ws, l.right-l.left, func(line []piece) { l.drawLine(line, size) })
+}
+
+// wrap breaks ws into lines no wider than width and hands each to draw, in
+// order. A word that does not fit goes to the next line; a word wider than a
+// whole line is split by rune. It consumes ws: a split word keeps only its
+// tail.
 //
 // It always terminates: each pass places a word, ends a non-empty line (so
 // the next pass sees an empty one), or splits off at least one rune.
-func (l *layout) flow(ws []word, size float64) {
-	width := l.right - l.left
+func (l *layout) wrap(ws []word, width float64, draw func([]piece)) {
 	var line []piece
 	lineW := 0.0
 	var trail *piece
 	empty := true
 	emit := func() {
-		l.drawLine(line, size)
+		draw(line)
 		line, lineW, trail, empty = nil, 0, nil, true
 	}
 	for i := 0; i < len(ws); {
@@ -265,17 +271,31 @@ func (l *layout) split(parts []piece, width float64) (head, tail []piece) {
 // different sizes share one baseline. Adjacent pieces in the same face and
 // style are drawn as one.
 func (l *layout) drawLine(line []piece, size float64) {
-	maxSize := size
-	if len(line) > 0 {
-		maxSize = 0
-		for _, p := range line {
-			maxSize = max(maxSize, p.st.size)
-		}
-	}
+	maxSize := lineSize(line, size)
 	lh := maxSize * lineFactor
 	l.ensure(lh)
 	l.startLine(maxSize)
+	l.placeLine(line, l.left, l.y, maxSize)
+	l.y += lh
+	l.bottom = l.y
+}
 
+// lineSize is the largest font size among line's pieces, or size when it
+// holds none.
+func lineSize(line []piece, size float64) float64 {
+	if len(line) == 0 {
+		return size
+	}
+	maxSize := 0.0
+	for _, p := range line {
+		maxSize = max(maxSize, p.st.size)
+	}
+	return maxSize
+}
+
+// placeLine draws one line of pieces with its line box's top left at (x, y),
+// whose largest text is maxSize. It moves nothing and breaks no page.
+func (l *layout) placeLine(line []piece, x, y, maxSize float64) {
 	var merged []piece
 	for _, p := range line {
 		if n := len(merged); n > 0 && merged[n-1].f == p.f && merged[n-1].st == p.st {
@@ -286,13 +306,12 @@ func (l *layout) drawLine(line []piece, size float64) {
 		merged = append(merged, p)
 	}
 
-	baseline := l.y + maxSize*baselineFactor
+	baseline := y + maxSize*baselineFactor
 	type placed struct {
 		p    piece
 		x, y float64
 	}
 	pl := make([]placed, 0, len(merged))
-	x := l.left
 	for _, p := range merged {
 		w := l.c.measure(p.f, p.st.size, p.text)
 		p.w = w
@@ -314,8 +333,6 @@ func (l *layout) drawLine(line []piece, size float64) {
 			l.c.line(q.x, mid, q.x+q.p.w, mid, max(0.5, q.p.st.size*0.06), 0)
 		}
 	}
-	l.y += lh
-	l.bottom = l.y
 }
 
 // rule draws a thematic break: a horizontal line across the text box.
