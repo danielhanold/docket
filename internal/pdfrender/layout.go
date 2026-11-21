@@ -15,15 +15,22 @@ const (
 	textTop    = margin
 	textBottom = pageHeight - margin
 
-	bodySize   = 10.5
-	lineFactor = 1.35 // line box height as a multiple of the font size
+	bodySize   = 11.5
+	lineFactor = 1.5 // line box height as a multiple of the font size
+
+	// headingLineFactor is the line height of headings, tighter than body
+	// text. Heading text keeps the body's baseline placement inside its
+	// box, so it only moves the next line up.
+	headingLineFactor = 1.35
 
 	footerSize = 9.0
 	footerY    = pageHeight - 48 // top of the footer's line box
 
-	tintGray = 236 // inline code background
-	ruleGray = 150 // thematic breaks
-	tintPad  = 1.0 // how far a tint reaches past its text on each side
+	tintGray   = 236  // inline code background
+	ruleGray   = 150  // thematic breaks
+	tintPad    = 2.0  // how far a tint reaches past its text on each side
+	tintRadius = 2.25 // the tint's corner radius: 3 px at 96 dpi
+	tintGap    = 3.5  // blank width reserved on each side of inline code; the tint fills tintPad of it
 
 	// fitSlack absorbs float rounding when a line is filled exactly.
 	fitSlack = 0.001
@@ -44,6 +51,10 @@ type layout struct {
 	markers []marker
 	bars    []bar
 	bottom  float64
+
+	// lead, when set, replaces lineFactor as the height of the lines
+	// drawLine draws; heading sets it.
+	lead float64
 }
 
 // newLayout starts the first page.
@@ -145,6 +156,11 @@ func (l *layout) words(runs []run) []word {
 		}
 		pieces, n := resolve(rn.text, rn.st)
 		l.placeholders += n
+		spacer := piece{f: faceSans, st: style{size: rn.st.size}, w: tintGap, space: tintGap}
+		if rn.st.tint {
+			cur.parts = append(cur.parts, spacer)
+			cur.w += spacer.w
+		}
 		for _, p := range pieces {
 			s := p.text
 			for s != "" {
@@ -174,6 +190,10 @@ func (l *layout) words(runs []run) []word {
 				cur.w += part.w
 				s = s[i:]
 			}
+		}
+		if rn.st.tint {
+			cur.parts = append(cur.parts, spacer)
+			cur.w += spacer.w
 		}
 	}
 	if len(cur.parts) > 0 {
@@ -271,6 +291,7 @@ func (l *layout) split(parts []piece, width float64) (head, tail []piece) {
 			acc += rw
 			taken++
 		}
+		acc += p.space
 		head = append(head, p)
 	}
 	return head, nil
@@ -282,7 +303,11 @@ func (l *layout) split(parts []piece, width float64) (head, tail []piece) {
 // style are drawn as one.
 func (l *layout) drawLine(line []piece, size float64) {
 	maxSize := lineSize(line, size)
-	lh := maxSize * lineFactor
+	factor := lineFactor
+	if l.lead > 0 {
+		factor = l.lead
+	}
+	lh := maxSize * factor
 	l.ensure(lh)
 	l.startLine(maxSize)
 	l.placeLine(line, l.left, l.y, maxSize)
@@ -308,7 +333,7 @@ func lineSize(line []piece, size float64) float64 {
 func (l *layout) placeLine(line []piece, x, y, maxSize float64) {
 	var merged []piece
 	for _, p := range line {
-		if n := len(merged); n > 0 && merged[n-1].f == p.f && merged[n-1].st == p.st {
+		if n := len(merged); n > 0 && merged[n-1].f == p.f && merged[n-1].st == p.st && merged[n-1].space == 0 && p.space == 0 {
 			merged[n-1].text += p.text
 			merged[n-1].w += p.w
 			continue
@@ -323,19 +348,21 @@ func (l *layout) placeLine(line []piece, x, y, maxSize float64) {
 	}
 	pl := make([]placed, 0, len(merged))
 	for _, p := range merged {
-		w := l.c.measure(p.f, p.st.size, p.text)
+		w := l.c.measure(p.f, p.st.size, p.text) + p.space
 		p.w = w
 		pl = append(pl, placed{p, x, baseline - p.st.size*baselineFactor})
 		x += w
 	}
 	for _, q := range pl {
-		if q.p.st.tint {
+		if q.p.st.tint && q.p.text != "" {
 			box := q.p.st.size * lineFactor
-			l.c.fillRect(q.x-tintPad, q.y+box*0.1, q.p.w+2*tintPad, box*0.8, tintGray)
+			l.c.fillRoundRect(q.x-tintPad, q.y+box*0.05, q.p.w+2*tintPad, box*0.9, tintRadius, "1234", tintGray)
 		}
 	}
 	for _, q := range pl {
-		l.c.text(q.x, q.y, q.p.f, q.p.st.size, q.p.text)
+		if q.p.text != "" {
+			l.c.text(q.x, q.y, q.p.f, q.p.st.size, q.p.text)
+		}
 	}
 	for _, q := range pl {
 		if q.p.st.strike {

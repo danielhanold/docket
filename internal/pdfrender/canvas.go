@@ -13,6 +13,7 @@ type canvas interface {
 	measure(f face, size float64, s string) float64
 	text(x, y float64, f face, size float64, s string)
 	fillRect(x, y, w, h float64, gray int)
+	fillRoundRect(x, y, w, h, r float64, corners string, gray int)
 	line(x1, y1, x2, y2, width float64, gray int)
 	newPage()
 	pageNo() int
@@ -77,6 +78,18 @@ func (c *fpdfCanvas) text(x, y float64, f face, size float64, s string) {
 func (c *fpdfCanvas) fillRect(x, y, w, h float64, gray int) {
 	c.pdf.SetFillColor(gray, gray, gray)
 	c.pdf.Rect(x, y, w, h, "F")
+}
+
+// fillRoundRect fills a rectangle whose corners named in corners are rounded
+// to radius r: "1" top left, "2" top right, "3" bottom right, "4" bottom
+// left. With no corners named it is a plain rectangle.
+func (c *fpdfCanvas) fillRoundRect(x, y, w, h, r float64, corners string, gray int) {
+	if corners == "" {
+		c.fillRect(x, y, w, h, gray)
+		return
+	}
+	c.pdf.SetFillColor(gray, gray, gray)
+	c.pdf.RoundedRect(x, y, w, h, r, corners, "F")
 }
 
 func (c *fpdfCanvas) line(x1, y1, x2, y2, width float64, gray int) {

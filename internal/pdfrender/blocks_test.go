@@ -1,6 +1,8 @@
 package pdfrender
 
 import (
+	"fmt"
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -212,6 +214,57 @@ func TestRenderHTMLBlock(t *testing.T) {
 	for _, s := range []string{"<div>", "hi", "</div>"} {
 		if d := findOne(t, r, s); d.f != faceSans {
 			t.Errorf("%q drawn in face %v, want the body face", s, d.f)
+		}
+	}
+}
+
+// TestRenderCodeBlockBackground pins one padded, rounded background per page
+// a code block touches: rounded only at the block's outer corners, with
+// codePad above the first line and below the last.
+func TestRenderCodeBlockBackground(t *testing.T) {
+	r, _, _ := renderRec(t, "```\nalpha\nomega\n```\n")
+	var bg []rectOp
+	for _, rc := range r.rects {
+		if rc.gray == codeGray {
+			bg = append(bg, rc)
+		}
+	}
+	if len(bg) != 1 {
+		t.Fatalf("short block drew %d backgrounds, want 1: %+v", len(bg), bg)
+	}
+	first, last := findOne(t, r, "alpha"), findOne(t, r, "omega")
+	if bg[0].corners != "1234" {
+		t.Errorf("short block corners %q, want 1234", bg[0].corners)
+	}
+	if d := first.y - bg[0].y; math.Abs(d-codePad) > 0.01 {
+		t.Errorf("top padding %.2f, want %.2f", d, codePad)
+	}
+	if d := bg[0].y + bg[0].h - (last.y + codeSize*lineFactor); math.Abs(d-codePad) > 0.01 {
+		t.Errorf("bottom padding %.2f, want %.2f", d, codePad)
+	}
+
+	var b strings.Builder
+	b.WriteString("```\n")
+	for i := 0; i < 60; i++ {
+		fmt.Fprintf(&b, "row%d\n", i)
+	}
+	b.WriteString("```\n")
+	r, _, _ = renderRec(t, b.String())
+	bg = bg[:0]
+	for _, rc := range r.rects {
+		if rc.gray == codeGray {
+			bg = append(bg, rc)
+		}
+	}
+	if len(bg) != 2 || bg[0].page == bg[1].page {
+		t.Fatalf("two-page block drew backgrounds %+v, want one on each page", bg)
+	}
+	if bg[0].corners != "12" || bg[1].corners != "34" {
+		t.Errorf("two-page block corners %q/%q, want 12/34", bg[0].corners, bg[1].corners)
+	}
+	for _, d := range codeOps(r) {
+		if !hasRectBehind(r, d) {
+			t.Errorf("code %q on page %d has no background behind it", d.s, d.page)
 		}
 	}
 }

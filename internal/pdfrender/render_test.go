@@ -545,3 +545,22 @@ func TestRenderHeadingKeepsWithNext(t *testing.T) {
 		}
 	}
 }
+
+// TestRenderCodeSpanGap pins the blank width reserved on each side of inline
+// code: neighbouring text, even touching punctuation, starts at least tintGap
+// away from the code's text, so it clears the tint.
+func TestRenderCodeSpanGap(t *testing.T) {
+	r, _, _ := renderRec(t, "x(`mid`)y\n")
+	open, code, shut := findOne(t, r, "x("), findOne(t, r, "mid"), findOne(t, r, ")y")
+	openEnd := open.x + r.measure(open.f, open.size, open.s)
+	codeEnd := code.x + r.measure(code.f, code.size, code.s)
+	if d := code.x - openEnd; math.Abs(d-tintGap) > 0.01 {
+		t.Errorf("gap before code %.2f, want %.2f", d, tintGap)
+	}
+	if d := shut.x - codeEnd; math.Abs(d-tintGap) > 0.01 {
+		t.Errorf("gap after code %.2f, want %.2f", d, tintGap)
+	}
+	if tintGap <= tintPad {
+		t.Errorf("tintGap %.2f does not clear tintPad %.2f", tintGap, tintPad)
+	}
+}

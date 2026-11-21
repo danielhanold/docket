@@ -23,6 +23,10 @@ type piece struct {
 	f    face
 	st   style
 	w    float64
+
+	// space is blank width that draws nothing. A piece with only space is
+	// a spacer: it holds the gap between inline code and its neighbours.
+	space float64
 }
 
 // primary is the face the style draws its text in. Mono has no italic face,
