@@ -9,10 +9,11 @@ import (
 )
 
 const (
-	codeSize = 9.5 // code block font size
-	codePad  = 4.0 // gap between a code block's background edge and its text
-	codeGray = 242 // code block background
-	tabWidth = 4   // code tab stops, in columns
+	codeSize   = 9.5  // code block font size
+	codePad    = 10.0 // gap between a code block's background edge and its text, on every side
+	codeRadius = 3.75 // a code block's corner radius: 5 px at 96 dpi
+	codeGray   = 242  // code block background
+	tabWidth   = 4    // code tab stops, in columns
 
 	listIndent = 16.0 // the least a list item is indented
 	markerGap  = 5.0  // space between a list marker and its item's text
@@ -187,6 +188,7 @@ func (w *walker) codeBlock(n ast.Node) {
 	l := w.l
 	l.gap(bodySize * 0.6)
 	st := style{mono: true, size: codeSize}
+	var lines [][]piece
 	for _, s := range w.rawLines(n) {
 		parts := l.screened(expandTabs(s), st)
 		for {
@@ -194,13 +196,14 @@ func (w *walker) codeBlock(n ast.Node) {
 			if width := l.right - l.left - 2*codePad; sumWidth(parts) > width+fitSlack {
 				head, tail = l.split(parts, width)
 			}
-			l.codeLine(head)
+			lines = append(lines, head)
 			if len(tail) == 0 {
 				break
 			}
 			parts = tail
 		}
 	}
+	l.codeLines(lines)
 }
 
 func sumWidth(parts []piece) float64 {
@@ -211,19 +214,50 @@ func sumWidth(parts []piece) float64 {
 	return total
 }
 
-// codeLine draws one visual line of code with its background.
-func (l *layout) codeLine(parts []piece) {
+// codeLines draws a code block's lines on one rounded background per page.
+// Top padding stays on the page with the first line; bottom padding is
+// dropped rather than carried alone onto a new page. Only the block's outer
+// corners are rounded: a block split across pages has square corners at the
+// break.
+func (l *layout) codeLines(lines [][]piece) {
 	lh := codeSize * lineFactor
-	l.ensure(lh)
-	l.startLine(codeSize)
-	l.c.fillRect(l.left, l.y, l.right-l.left, lh, codeGray)
-	x := l.left + codePad
-	for _, p := range parts {
-		l.c.text(x, l.y, p.f, p.st.size, p.text)
-		x += p.w
+	for first := true; first || len(lines) > 0; first = false {
+		top := 0.0
+		if first {
+			top = codePad
+		}
+		l.ensure(top + lh)
+		n := min(len(lines), int((textBottom-l.y-top+fitSlack)/lh))
+		if n < 1 && len(lines) > 0 {
+			n = 1
+		}
+		last := n == len(lines)
+		bottom := 0.0
+		if last && l.y+top+float64(n)*lh+codePad <= textBottom {
+			bottom = codePad
+		}
+		corners := ""
+		if first {
+			corners += "12"
+		}
+		if last {
+			corners += "34"
+		}
+		l.c.fillRoundRect(l.left, l.y, l.right-l.left, top+float64(n)*lh+bottom, codeRadius, corners, codeGray)
+		l.y += top
+		for _, line := range lines[:n] {
+			l.startLine(codeSize)
+			x := l.left + codePad
+			for _, p := range line {
+				l.c.text(x, l.y, p.f, p.st.size, p.text)
+				x += p.w
+			}
+			l.y += lh
+		}
+		l.y += bottom
+		l.bottom = l.y
+		lines = lines[n:]
 	}
-	l.y += lh
-	l.bottom = l.y
 }
 
 // expandTabs replaces each tab with spaces up to the next multiple of

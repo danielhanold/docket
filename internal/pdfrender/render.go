@@ -137,8 +137,10 @@ func (w *walker) heading(n *ast.Heading) {
 	}
 	w.l.gap(size * 0.8)
 	// Keep with next: never leave a heading alone at a page bottom.
-	w.l.ensure(size*lineFactor + bodySize*lineFactor)
+	w.l.ensure(size*headingLineFactor + bodySize*lineFactor)
+	w.l.lead = headingLineFactor
 	w.l.paragraph(runs, size)
+	w.l.lead = 0
 }
 
 // screenTitle is the plain text of runs with whitespace collapsed, screened

@@ -20,6 +20,7 @@ type rectOp struct {
 	page       int
 	x, y, w, h float64
 	gray       int
+	corners    string // rounded corners; "" for fillRect
 }
 
 // lineOp is one recorded line operation.
@@ -48,6 +49,11 @@ func (r *recorder) text(x, y float64, f face, size float64, s string) {
 func (r *recorder) fillRect(x, y, w, h float64, gray int) {
 	r.rects = append(r.rects, rectOp{page: r.pageNo(), x: x, y: y, w: w, h: h, gray: gray})
 	r.fpdfCanvas.fillRect(x, y, w, h, gray)
+}
+
+func (r *recorder) fillRoundRect(x, y, w, h, rad float64, corners string, gray int) {
+	r.rects = append(r.rects, rectOp{page: r.pageNo(), x: x, y: y, w: w, h: h, gray: gray, corners: corners})
+	r.fpdfCanvas.fillRoundRect(x, y, w, h, rad, corners, gray)
 }
 
 func (r *recorder) line(x1, y1, x2, y2, width float64, gray int) {
