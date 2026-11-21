@@ -291,3 +291,56 @@ func TestRenderTableNested(t *testing.T) {
 		t.Errorf("quote rule %+v does not run alongside the table", *rule)
 	}
 }
+
+// A row taller than a page is split across pages: every line of its cell is
+// drawn, none past the bottom margin, and each page it continues on starts
+// with a fresh copy of the header.
+func TestRenderTableRowTallerThanPage(t *testing.T) {
+	const n = 1500
+	words := make([]string, n)
+	for i := range words {
+		words[i] = fmt.Sprintf("w%04d", i)
+	}
+	md := "Intro.\n\n| Name | Note |\n|---|---|\n| key | " + strings.Join(words, " ") + " |\n| after | tail |\n"
+	var r *recorder
+	within(t, 30*time.Second, func() { r = record(md) })
+
+	seen := map[string]int{}
+	cellPages := map[int]bool{}
+	for _, d := range body(r) {
+		for _, f := range strings.Fields(d.s) {
+			if len(f) == 5 && f[0] == 'w' {
+				seen[f]++
+				cellPages[d.page] = true
+			}
+		}
+		if d.y+d.size*lineFactor > textBottom+0.01 {
+			t.Errorf("text %q on page %d at y %.2f runs past the bottom margin", d.s, d.page, d.y)
+		}
+	}
+	for _, w := range words {
+		if seen[w] != 1 {
+			t.Errorf("word %s drawn %d times, want once", w, seen[w])
+		}
+	}
+	if len(cellPages) < 2 {
+		t.Fatalf("tall cell drawn on %d pages, want it split over several", len(cellPages))
+	}
+	headers := map[int][]drawn{}
+	for _, d := range find(r, "Name") {
+		headers[d.page] = append(headers[d.page], d)
+	}
+	for p := range cellPages {
+		if len(headers[p]) != 1 {
+			t.Errorf("page %d continues the tall row and draws the header %d times, want once", p, len(headers[p]))
+		}
+	}
+	if len(find(r, "after")) != 1 || len(find(r, "tail")) != 1 {
+		t.Errorf("row after the tall one not drawn once")
+	}
+	for _, ln := range r.lines {
+		if max(ln.y1, ln.y2) > textBottom+0.01 {
+			t.Errorf("border %+v runs past the bottom margin", ln)
+		}
+	}
+}
