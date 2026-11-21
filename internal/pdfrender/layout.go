@@ -126,8 +126,10 @@ func (l *layout) measured(p piece) piece {
 }
 
 // words screens runs through resolve, counting placeholders, and splits them
-// into words on spaces. A word may span several styles; a run of spaces
-// collapses to one.
+// into words on spaces. A word may span several styles; in prose a run of
+// spaces collapses to one. Code (a tinted run) keeps every space: the first
+// is the breakable gap and the rest lead the next word, so code still wraps
+// at its spaces.
 func (l *layout) words(runs []run) []word {
 	var out []word
 	var cur word
@@ -147,11 +149,19 @@ func (l *layout) words(runs []run) []word {
 			s := p.text
 			for s != "" {
 				if s[0] == ' ' {
-					s = strings.TrimLeft(s, " ")
+					rest := strings.TrimLeft(s, " ")
+					extra := s[:len(s)-len(rest)]
+					s = rest
 					if len(cur.parts) > 0 {
 						sp := l.measured(piece{text: " ", f: p.f, st: p.st})
 						cur.trail = &sp
 						flush()
+						extra = extra[1:]
+					}
+					if p.st.tint && extra != "" {
+						part := l.measured(piece{text: extra, f: p.f, st: p.st})
+						cur.parts = append(cur.parts, part)
+						cur.w += part.w
 					}
 					continue
 				}
