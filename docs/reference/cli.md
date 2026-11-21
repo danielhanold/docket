@@ -35,10 +35,11 @@ Each line is a pointer: the command, what its verbs govern, and where to read th
   (`docket diagnostic config`). Verbs: `docket diagnostic --help`.
 - **`docket evidence`** — record and verify the build evidence that certifies an exact tested
   commit. Verbs: `docket evidence --help`.
-- **`docket export`** — write a clean Markdown copy of a change, spec, plan, or results file,
-  free of docket's links and generated blocks, and open it. Without an id it exports the change
-  whose branch is checked out. Agent sessions reach the export through the `docket-export`
-  skill. Details: `docket export --help`.
+- **`docket export`** — write a clean Markdown copy and a PDF of a change, spec, plan, or
+  results file, free of docket's links and generated blocks, and open the PDF; `--format` picks
+  `markdown`, `pdf`, or both. Without an id it exports the change whose branch is checked out.
+  Agent sessions reach the export through the `docket-export` skill. Details:
+  `docket export --help`.
 - **`docket finalize`** — sequence a change's closing half: rebase, publish, merge, and closeout. Verbs: `docket finalize --help`.
 - **`docket gate`** — launch, observe, stop, and recover supervised local gate runs. Verbs: `docket gate --help`.
 - **`docket install`** — install docket's skills, agents, and dispatch material into your

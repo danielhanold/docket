@@ -40,6 +40,9 @@ func TestExportCLIPassesParsedOptions(t *testing.T) {
 		{"export", "spec", "541", "--output-path", "/tmp/x", "--warnings", "leftovers", "--print", "--repo-dir", "/tmp/repo"},
 		{"export", "spec", "0541", "--repo-dir", "/tmp/repo"},
 		{"export", "plan", "--repo-dir", "/tmp/repo"},
+		{"export", "spec", "7", "--format", "pdf", "--repo-dir", "/tmp/repo"},
+		{"export", "spec", "7", "--format", "markdown", "--format", "pdf", "--repo-dir", "/tmp/repo"},
+		{"export", "spec", "7", "--format", "markdown,pdf", "--repo-dir", "/tmp/repo"},
 	} {
 		if _, errS, code := runCLI(t, args...); code != 0 {
 			t.Fatalf("%q: code %d stderr %q", args, code, errS)
@@ -49,6 +52,9 @@ func TestExportCLIPassesParsedOptions(t *testing.T) {
 		{RepoDir: "/tmp/repo", What: "spec", ID: 541, Print: true, OutputPath: "/tmp/x", Warnings: "leftovers"},
 		{RepoDir: "/tmp/repo", What: "spec", ID: 541},
 		{RepoDir: "/tmp/repo", What: "plan"},
+		{RepoDir: "/tmp/repo", What: "spec", ID: 7, Formats: "pdf"},
+		{RepoDir: "/tmp/repo", What: "spec", ID: 7, Formats: "markdown,pdf"},
+		{RepoDir: "/tmp/repo", What: "spec", ID: 7, Formats: "markdown,pdf"},
 	}
 	if len(*got) != len(want) {
 		t.Fatalf("options = %+v, want %+v", *got, want)
@@ -69,6 +75,10 @@ func TestExportCLIUsageErrors(t *testing.T) {
 		{"export", "spec", "#541"}, {"export", "spec", "0"}, {"export", "spec", "1", "2"},
 		{"export", "spec", "5", "--warnings", "bogus"},
 		{"export", "spec", "5", "--output-path", ""},
+		{"export", "spec", "5", "--format", ""},
+		{"export", "spec", "5", "--format", "html"},
+		{"export", "spec", "5", "--format", "markdown,"},
+		{"export", "spec", "5", "--format", "PDF"},
 	} {
 		if _, errS, code := runCLI(t, args...); code != 2 || errS == "" || strings.Contains(strings.TrimRight(errS, "\n"), "\n") {
 			t.Errorf("%q: code %d stderr %q, want exit 2 and one line", args, code, errS)
@@ -136,5 +146,24 @@ func TestExportCLIHelpNamesTicketKind(t *testing.T) {
 	}
 	if strings.Contains(out, "one of issue") {
 		t.Errorf("export --help still names the retired issue kind:\n%s", out)
+	}
+}
+
+// TestExportCLIHelpDescribesFormats pins that the help text explains --format,
+// which file opens, the extension swap for an exact file, and the kept
+// Markdown copy when the PDF fails.
+func TestExportCLIHelpDescribesFormats(t *testing.T) {
+	out, errS, code := runCLI(t, "export", "--help")
+	if code != 0 {
+		t.Fatalf("export --help exit %d, stderr %q", code, errS)
+	}
+	flat := strings.Join(strings.Fields(out), " ")
+	for _, want := range []string{
+		"--format", "markdown, pdf, or both", "the PDF when the export includes it",
+		"report.md and report.pdf", "If the PDF fails, the Markdown copy is kept",
+	} {
+		if !strings.Contains(flat, want) {
+			t.Errorf("export --help lacks %q:\n%s", want, out)
+		}
 	}
 }
