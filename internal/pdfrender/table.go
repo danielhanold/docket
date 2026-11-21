@@ -22,11 +22,11 @@ type tableRow struct {
 // wide as their widest cell's single line, scaled down proportionally when
 // they do not fit the text box. Cell text wraps inside its column.
 //
-// A row is never split across pages: one that does not fit on this page
-// starts a new one, under a fresh copy of the header. A row taller than a
-// page (less its header) has nowhere better to go, so it is drawn from the
-// top of a fresh page and runs past the bottom margin; the documents this
-// renders hold no such row.
+// A row that fits on a page is never split: one that does not fit on this
+// page starts a new one, under a fresh copy of the header. A row taller than
+// a page (less its header) is the exception: its cells' lines fill the rest
+// of this page, and each cell's remaining lines carry on under the header on
+// the next, page after page, so no line runs past the bottom margin.
 func (w *walker) table(n *extast.Table) {
 	l := w.l
 	var rows [][][]word
@@ -73,20 +73,11 @@ func (w *walker) table(n *extast.Table) {
 
 	laid := make([]tableRow, len(rows))
 	for ri, cells := range rows {
-		row := tableRow{cells: make([][][]piece, cols)}
-		textH := bodySize * lineFactor
+		lines := make([][][]piece, cols)
 		for i, ws := range cells {
-			var lines [][]piece
-			l.wrap(ws, widths[i]-2*cellPadX, func(line []piece) { lines = append(lines, line) })
-			h := 0.0
-			for _, line := range lines {
-				h += lineSize(line, bodySize) * lineFactor
-			}
-			row.cells[i] = lines
-			textH = max(textH, h)
+			l.wrap(ws, widths[i]-2*cellPadX, func(line []piece) { lines[i] = append(lines[i], line) })
 		}
-		row.h = textH + 2*cellPadY
-		laid[ri] = row
+		laid[ri] = newTableRow(lines)
 	}
 
 	var header *tableRow
@@ -105,24 +96,107 @@ func (w *walker) table(n *extast.Table) {
 	}
 	// The header never sits alone at the foot of a page.
 	l.ensure(first)
+	// fresh is true while nothing but the header is drawn on this page, so
+	// a row that does not fit now would not fit on a new page either.
+	fresh := l.atTop()
 	top := true
 	if header != nil {
 		w.tableRow(header, edges, aligns, top)
 		top = false
 	}
+	nextPage := func() {
+		l.newPage()
+		fresh, top = true, true
+		if header != nil {
+			w.tableRow(header, edges, aligns, top)
+			top = false
+		}
+	}
+	freshSpace := textBottom - textTop
+	if header != nil {
+		freshSpace -= header.h
+	}
 	for i := range body {
 		row := &body[i]
-		if l.y+row.h > textBottom && !l.atTop() {
-			l.newPage()
-			top = true
-			if header != nil {
-				w.tableRow(header, edges, aligns, top)
-				top = false
+		for row != nil && l.y+row.h > textBottom {
+			if !fresh && row.h <= freshSpace {
+				nextPage()
+				continue
+			}
+			head, tail := splitRow(*row, textBottom-l.y, fresh)
+			if head == nil {
+				nextPage()
+				continue
+			}
+			w.tableRow(head, edges, aligns, top)
+			top, row = false, tail
+			if tail != nil {
+				nextPage()
 			}
 		}
-		w.tableRow(row, edges, aligns, top)
-		top = false
+		if row != nil {
+			w.tableRow(row, edges, aligns, top)
+		}
+		top, fresh = false, false
 	}
+}
+
+// newTableRow lays out a row from each cell's wrapped lines: its height is
+// its tallest cell's, at least one body line, plus padding.
+func newTableRow(cells [][][]piece) tableRow {
+	textH := bodySize * lineFactor
+	for _, lines := range cells {
+		h := 0.0
+		for _, line := range lines {
+			h += lineSize(line, bodySize) * lineFactor
+		}
+		textH = max(textH, h)
+	}
+	return tableRow{cells: cells, h: textH + 2*cellPadY}
+}
+
+// splitRow splits row so its head fits in avail points: each cell keeps as
+// many of its leading lines as fit, and the tail holds the rest. head is nil
+// when no line fits, unless force, when each cell keeps at least its first
+// line so a page always makes progress. tail is nil when nothing is left.
+func splitRow(row tableRow, avail float64, force bool) (head, tail *tableRow) {
+	room := avail - 2*cellPadY
+	heads := make([][][]piece, len(row.cells))
+	tails := make([][][]piece, len(row.cells))
+	fits, left := false, false
+	for i, lines := range row.cells {
+		n, h := 0, 0.0
+		for n < len(lines) {
+			lh := lineSize(lines[n], bodySize) * lineFactor
+			if h+lh > room {
+				break
+			}
+			h += lh
+			n++
+		}
+		heads[i], tails[i] = lines[:n], lines[n:]
+		fits = fits || n > 0
+	}
+	if !fits {
+		if !force {
+			return nil, nil
+		}
+		for i, lines := range row.cells {
+			if len(lines) > 0 {
+				heads[i], tails[i] = lines[:1], lines[1:]
+			}
+		}
+	}
+	for _, lines := range tails {
+		left = left || len(lines) > 0
+	}
+	h := newTableRow(heads)
+	head = &h
+	if left {
+		t := newTableRow(tails)
+		tail = &t
+	}
+	return head, tail
 }
 
 // tableRow draws row at the current position between the column edges and
