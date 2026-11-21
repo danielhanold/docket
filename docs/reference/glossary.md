@@ -1763,7 +1763,7 @@ agent.
 ### docket-export
 
 The skill an agent session uses to hand a change, spec, plan, or results file to anything outside
-docket. It runs the `export` operation (`--print --json`) and passes the clean copy to a file or
+docket. It runs the `export` operation (`--format markdown --print --json`) and passes the clean copy to a file or
 another tool, never the raw file. In a private repository it also rewrites what the
 export leaves that names docket, checks the result, and shows you before → after before posting.
 

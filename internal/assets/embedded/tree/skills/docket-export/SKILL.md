@@ -26,12 +26,12 @@ In a private repository, also run the `diagnostic.config` argv with `--repo-dir 
 
 ## 3. Run the export
 
-Run the `export` argv as `<export argv> <what> [<id>] --print --json --repo-dir <repo root>`, where `<what>` is `change`, `spec`, `plan`, or `results` and `<id>` is the change the person named (omit it to use the change whose branch is checked out). Always `--print --json`: `--print` opens no viewer — the person may not be at the screen, and can ask you to open the file. Never pass `--warnings` unless the person asked for a filter on a file request; the default reports everything the private pass reads.
+Run the `export` argv as `<export argv> <what> [<id>] --format markdown --print --json --repo-dir <repo root>`, where `<what>` is `change`, `spec`, `plan`, or `results` and `<id>` is the change the person named (omit it to use the change whose branch is checked out). Always `--print --json`: `--print` opens no viewer — the person may not be at the screen, and can ask you to open the file. Always `--format markdown`: the rewrite pass edits the Markdown copy, and a PDF written beside it would keep the unrewritten text. Never pass `--warnings` unless the person asked for a filter on a file request; the default reports everything the private pass reads.
 
 - **File request** ("export the spec for 9"): the export's default destination, or `--output-path <place>` when the person names one.
 - **Outside-tool request** ("put the spec for 9 in a message to the design channel"): `--output-path` set to a fresh directory from `mktemp -d "${TMPDIR:-/tmp}/docket-export.XXXXXX"`, so the person's downloads folder does not collect one file per post. Leave the file there and report its path.
 
-**A failed export posts nothing.** If `result` is not `applied` or there is no `exported_path`, tell the person the `message` and stop. Never fall back to the raw file or a hand cleanup. This holds in every repository.
+**A failed export posts nothing.** If `result` is not `applied` or `files` has no `markdown` entry, tell the person the `message` and stop. Never fall back to the raw file or a hand cleanup. This holds in every repository.
 
 ## 4. Shared repository
 
@@ -53,10 +53,10 @@ Nothing that names docket may leave.
 
 ## 6. Post
 
-Read the file at `exported_path` (after the rewrite pass, in a private repository) and hand its text to the target unchanged. When the target needs another format, such as Jira's own markup, convert the formatting only, never the words. A summary or excerpt the person asks for ("just the Goals section") is made from this copy, never the raw file. When the text is too long for the target, tell the person and ask whether to split it or attach the file. Whatever confirmation your harness already asks before an outward post is unchanged.
+Read the file at the `path` of the `markdown` entry in `files` (after the rewrite pass, in a private repository) and hand its text to the target unchanged. When the target needs another format, such as Jira's own markup, convert the formatting only, never the words. A summary or excerpt the person asks for ("just the Goals section") is made from this copy, never the raw file. When the text is too long for the target, tell the person and ask whether to split it or attach the file. Whatever confirmation your harness already asks before an outward post is unchanged.
 
 ## 7. Report
 
-Report the path, whether an existing file was replaced (`replaced`), any warnings, and, in a private repository, the before → after list.
+Report the path, whether an existing file was replaced (that entry's `replaced`), any warnings, and, in a private repository, the before → after list.
 
 The board and pull requests have no export. A person who explicitly asks for the raw file is asking for something else.
