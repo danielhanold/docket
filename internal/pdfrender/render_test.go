@@ -193,6 +193,32 @@ func TestRenderInlineStyles(t *testing.T) {
 	}
 }
 
+// A code span keeps its interior spaces, while prose still collapses a run of
+// spaces to one; a long spaced code span still wraps and ends.
+func TestRenderCodeSpanKeepsSpaces(t *testing.T) {
+	r, _, _ := renderRec(t, "x  y `a  b   c`\n")
+	findOne(t, r, "a  b   c")
+	findOne(t, r, "x y ")
+
+	long := strings.Repeat("ab  cd   ", 200)
+	var rr *recorder
+	within(t, 30*time.Second, func() { rr = record("`" + long + "`\n") })
+	got := strings.ReplaceAll(bodyText(rr), " ", "")
+	if want := strings.Repeat("abcd", 200); got != want {
+		t.Fatalf("long code span text lost or changed: got %d bytes, want %d", len(got), len(want))
+	}
+	if !strings.Contains(bodyText(rr), "ab  cd   ab") {
+		t.Errorf("long code span lost its interior spaces: %q", bodyText(rr)[:80])
+	}
+	lines := map[float64]bool{}
+	for _, d := range body(rr) {
+		lines[d.y] = true
+	}
+	if len(lines) < 2 {
+		t.Errorf("long code span did not wrap: drawn on %d line(s)", len(lines))
+	}
+}
+
 func TestRenderHeadings(t *testing.T) {
 	r, _, _ := renderRec(t, "# A\n\n## B\n\n### C\n\n#### D\n\n##### E\n\n###### F\n")
 	prev := math.Inf(1)
