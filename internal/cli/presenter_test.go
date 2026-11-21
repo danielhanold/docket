@@ -94,15 +94,18 @@ func TestPresentHumanNotesGoToStderr(t *testing.T) {
 }
 
 // TestPresenterWritesWarningsToStderr pins the export output: stdout is
-// exactly the exported path, stderr carries the notes and then one "warning:"
-// line each, and JSON mode writes nothing to stderr.
+// exactly the written paths, one per line, stderr carries the notes and then
+// one "warning:" line each, and JSON mode writes nothing to stderr.
 func TestPresenterWritesWarningsToStderr(t *testing.T) {
 	r := app.ExportResult{
 		Envelope: app.NewEnvelope(app.OperationExport, app.ResultApplied), What: "spec",
-		ExportedPath: "/d/2026-01-02-spec-widget.md",
-		Notes:        []string{"replaced /d/2026-01-02-spec-widget.md"},
-		Leftovers:    []app.ExportLeftover{{Line: 4, Text: "[a](b)", Rule: "link"}},
-		Mentions:     &app.ExportMentions{Count: 2, Lines: []int{1, 7}},
+		Files: []app.ExportFile{
+			{Format: app.ExportFormatMarkdown, Path: "/d/2026-01-02-spec-widget.md", Replaced: true},
+			{Format: app.ExportFormatPDF, Path: "/d/2026-01-02-spec-widget.pdf"},
+		},
+		Notes:     []string{"replaced /d/2026-01-02-spec-widget.md"},
+		Leftovers: []app.ExportLeftover{{Line: 4, Text: "[a](b)", Rule: "link"}},
+		Mentions:  &app.ExportMentions{Count: 2, Lines: []int{1, 7}},
 	}
 	var out, errBuf bytes.Buffer
 	Presenter{Stdout: &out, Stderr: &errBuf}.Present(r)
@@ -110,7 +113,7 @@ func TestPresenterWritesWarningsToStderr(t *testing.T) {
 	for _, w := range r.HumanWarnings() {
 		wantErr += "warning: " + w + "\n"
 	}
-	if out.String() != "/d/2026-01-02-spec-widget.md\n" || errBuf.String() != wantErr || len(r.HumanWarnings()) != 2 {
+	if out.String() != "/d/2026-01-02-spec-widget.md\n/d/2026-01-02-spec-widget.pdf\n" || errBuf.String() != wantErr || len(r.HumanWarnings()) != 2 {
 		t.Errorf("stdout %q stderr %q, want stderr %q", out.String(), errBuf.String(), wantErr)
 	}
 	out.Reset()

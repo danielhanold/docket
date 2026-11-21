@@ -99,3 +99,19 @@ func TestSchemaVocabularyRevisionCodes(t *testing.T) {
 		}
 	}
 }
+
+// TestSchemaExportResultFiles: the export result publishes the files list and
+// none of the single-file keys it replaced.
+func TestSchemaExportResultFiles(t *testing.T) {
+	keys := schemaKeyPaths(t)
+	for _, p := range []string{"export RES files", "export RES files.format", "export RES files.path", "export RES files.replaced"} {
+		if !keys[p] {
+			t.Errorf("schema lacks %s", p)
+		}
+	}
+	for _, p := range []string{"export RES exported_path", "export RES replaced"} {
+		if keys[p] {
+			t.Errorf("schema still publishes %s", p)
+		}
+	}
+}

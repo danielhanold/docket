@@ -31,7 +31,7 @@ func exportOK(path string, notes ...string) app.ExportResult {
 		notes = []string{}
 	}
 	return app.ExportResult{Envelope: app.NewEnvelope(app.OperationExport, app.ResultApplied), What: "spec", ChangeID: 7,
-		ExportedPath: path, Notes: notes}
+		Files: []app.ExportFile{{Format: app.ExportFormatMarkdown, Path: path}}, Notes: notes}
 }
 
 func TestExportCLIPassesParsedOptions(t *testing.T) {
@@ -94,6 +94,21 @@ func TestExportCLIPrintsThePath(t *testing.T) {
 	out, errS, code := runCLI(t, "export", "spec", "7", "--print", "--repo-dir", "/tmp/repo")
 	if code != 0 || out != "/d/2026-01-02-spec-widget.md\n" || errS != "note: replaced /d/2026-01-02-spec-widget.md\n" {
 		t.Fatalf("code %d stdout %q stderr %q", code, out, errS)
+	}
+}
+
+// TestExportCLIPDFFailureExits: a PDF failure that kept the Markdown copy exits
+// non-zero (external-failed), with stdout carrying the Markdown path and then
+// the message.
+func TestExportCLIPDFFailureExits(t *testing.T) {
+	msg := "could not render the PDF: boom — the Markdown copy is at /d/2026-01-02-spec-widget.md"
+	stubExport(t, app.ExportResult{Envelope: app.NewEnvelope(app.OperationExport, app.ResultExternalFailed), What: "spec", ChangeID: 7,
+		Files:  []app.ExportFile{{Format: app.ExportFormatMarkdown, Path: "/d/2026-01-02-spec-widget.md"}},
+		Notes:  []string{},
+		Reason: app.ReasonOpenPDFFailed, Message: msg})
+	out, _, code := runCLI(t, "export", "spec", "7", "--repo-dir", "/tmp/repo")
+	if code != app.ExitCode(app.ResultExternalFailed) || code == 0 || out != "/d/2026-01-02-spec-widget.md\n"+msg+"\n" {
+		t.Fatalf("code %d stdout %q", code, out)
 	}
 }
 

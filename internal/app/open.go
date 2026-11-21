@@ -57,6 +57,7 @@ const (
 	ReasonOpenOpenerFailed       = "opener-failed"
 	ReasonOpenOutputPathInvalid  = "output-path-invalid" // the export destination cannot be written
 	ReasonOpenExportFailed       = "export-failed"       // reading the source or writing the copy failed
+	ReasonOpenPDFFailed          = "pdf-failed"          // rendering or writing the PDF failed; a requested Markdown copy is kept
 	// ReasonOpenOutputPathProtected refuses an export destination that is the
 	// source artifact itself or lies inside the metadata checkout.
 	ReasonOpenOutputPathProtected = "output-path-protected"

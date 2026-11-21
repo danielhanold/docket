@@ -1,8 +1,9 @@
 package app
 
 // export.go holds `docket export`: its argument grammar, its result document,
-// the destination rule, the atomic write of the clean copy, and the warnings
-// the self-check reports, filtered by --warnings.
+// the formats it writes, the destination rule, the atomic write of the clean
+// copy and of its PDF, and the warnings the self-check reports, filtered by
+// --warnings.
 
 import (
 	"context"
@@ -18,6 +19,7 @@ import (
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/export"
 	"github.com/danielhanold/docket/internal/exportcheck"
+	"github.com/danielhanold/docket/internal/pdfrender"
 )
 
 // OperationExport is the operation id of `docket export`.
@@ -35,37 +37,101 @@ type ExportOptions struct {
 	Print      bool
 	OutputPath string // "" = the default destination
 	Warnings   string // "" = WarningsAll
+	// Formats is "" for both formats, or a comma-separated list
+	// ParseExportFormats accepts. A string keeps ExportOptions comparable.
+	Formats string
+}
+
+// The --format values: which files an export writes.
+const (
+	ExportFormatMarkdown = "markdown"
+	ExportFormatPDF      = "pdf"
+)
+
+// ExportFormatSet is the set of formats an export writes.
+type ExportFormatSet struct{ Markdown, PDF bool }
+
+// ParseExportFormats parses --format values: each is split on commas, and
+// every element must be exactly markdown or pdf, in any order, duplicates
+// allowed. An empty list or element, or an unknown value, is a one-line error.
+func ParseExportFormats(vals []string) (ExportFormatSet, error) {
+	var set ExportFormatSet
+	needs := errors.New("--format needs a value — choose markdown, pdf, or both")
+	if len(vals) == 0 {
+		return set, needs
+	}
+	for _, v := range vals {
+		for _, e := range strings.Split(v, ",") {
+			switch e {
+			case ExportFormatMarkdown:
+				set.Markdown = true
+			case ExportFormatPDF:
+				set.PDF = true
+			case "":
+				return ExportFormatSet{}, needs
+			default:
+				return ExportFormatSet{}, fmt.Errorf("invalid --format value %q — choose markdown, pdf, or both", e)
+			}
+		}
+	}
+	return set, nil
+}
+
+// exportFormats resolves ExportOptions.Formats: "" is both formats.
+func exportFormats(formats string) (ExportFormatSet, error) {
+	if formats == "" {
+		return ExportFormatSet{Markdown: true, PDF: true}, nil
+	}
+	return ParseExportFormats([]string{formats})
+}
+
+// ExportFile is one file an export wrote: its format, its path, and whether it
+// replaced an existing file.
+type ExportFile struct {
+	Format   string `json:"format"`
+	Path     string `json:"path"`
+	Replaced bool   `json:"replaced"`
 }
 
 // ExportResult is the document `docket export` emits for every outcome.
-// ChangeID is omitted until the change is resolved; Notes is always a list,
-// possibly empty; Leftovers and Mentions follow --warnings.
+// ChangeID is omitted until the change is resolved; Files lists every file
+// written, Markdown first, and is always a list, as is Notes; Launched means
+// the opened file was launched; Leftovers and Mentions follow --warnings.
 type ExportResult struct {
 	Envelope
-	What         string           `json:"what"`
-	ChangeID     int              `json:"change_id,omitempty"`
-	ExportedPath string           `json:"exported_path,omitempty"`
-	Replaced     bool             `json:"replaced,omitempty"`
-	Launched     bool             `json:"launched"`
-	Notes        []string         `json:"notes"`
-	Leftovers    []ExportLeftover `json:"leftovers,omitempty"`
-	Mentions     *ExportMentions  `json:"mentions,omitempty"`
-	Reason       string           `json:"reason,omitempty"`
-	Message      string           `json:"message,omitempty"`
+	What      string           `json:"what"`
+	ChangeID  int              `json:"change_id,omitempty"`
+	Files     []ExportFile     `json:"files"`
+	Launched  bool             `json:"launched"`
+	Notes     []string         `json:"notes"`
+	Leftovers []ExportLeftover `json:"leftovers,omitempty"`
+	Mentions  *ExportMentions  `json:"mentions,omitempty"`
+	Reason    string           `json:"reason,omitempty"`
+	Message   string           `json:"message,omitempty"`
 }
 
-// HumanText renders the result for a terminal: the exported path alone on
-// success (so it composes in command substitution), the path then the failure
-// message when the opener failed after the copy was written, or the message
-// alone.
+// Path returns the path of the file written in format, or "" when none was.
+func (r ExportResult) Path(format string) string {
+	for _, f := range r.Files {
+		if f.Format == format {
+			return f.Path
+		}
+	}
+	return ""
+}
+
+// HumanText renders the result for a terminal: one path per line for every
+// file written (so a single-format export composes in command substitution),
+// then the failure message on its own line when there is one.
 func (r ExportResult) HumanText() string {
-	if r.Message == "" {
-		return r.ExportedPath
+	lines := []string{}
+	for _, f := range r.Files {
+		lines = append(lines, f.Path)
 	}
-	if r.ExportedPath != "" {
-		return r.ExportedPath + "\n" + r.Message
+	if r.Message != "" {
+		lines = append(lines, r.Message)
 	}
-	return r.Message
+	return strings.Join(lines, "\n")
 }
 
 // HumanNotes returns the notes a human renderer writes apart from HumanText.
@@ -111,10 +177,12 @@ func ValidateExportWarnings(w string) error {
 
 // Export resolves what (and the change id, or the change the checked-out branch
 // records when the id is 0) to an artifact in the local metadata checkout,
-// whatever the repository's open routing, and writes its clean copy. Only an
-// export to the default destination without Print opens the copy.
+// whatever the repository's open routing, and writes its clean copy in the
+// requested formats. Only an export to the default destination without Print
+// opens anything, and only when every file was written: the PDF when it was
+// requested, else the Markdown.
 func Export(ctx context.Context, deps OpenDeps, o ExportOptions) ExportResult {
-	res := ExportResult{What: o.What, ChangeID: o.ID, Notes: []string{}}
+	res := ExportResult{What: o.What, ChangeID: o.ID, Files: []ExportFile{}, Notes: []string{}}
 	fail := func(f openFailure) ExportResult {
 		res.Envelope = NewEnvelope(OperationExport, f.result)
 		res.Reason, res.Message = f.reason, f.message
@@ -135,6 +203,10 @@ func Export(ctx context.Context, deps OpenDeps, o ExportOptions) ExportResult {
 	if err := ValidateExportWarnings(o.Warnings); err != nil {
 		return fail(openFailure{ResultInvalidInput, ReasonOpenInvalidTarget, err.Error()})
 	}
+	formats, err := exportFormats(o.Formats)
+	if err != nil {
+		return fail(openFailure{ResultInvalidInput, ReasonOpenInvalidTarget, err.Error()})
+	}
 	dir, branch, pin, f := openPrelude(ctx, deps, o.RepoDir, o.What, o.ID)
 	if f != nil {
 		return fail(*f)
@@ -151,14 +223,17 @@ func Export(ctx context.Context, deps OpenDeps, o ExportOptions) ExportResult {
 	if f := checkArtifactPath(o.What, rel); f != nil {
 		return fail(*f)
 	}
-	cp, f := writeCleanCopy(ctx, deps, o.What, o.OutputPath, o.Warnings, dir, pin, c, snap, rel)
+	cp, f := writeCleanCopy(ctx, deps, o.What, o.OutputPath, o.Warnings, dir, pin, c, snap, rel, formats)
+	// What was written is reported on every outcome, so a PDF failure still
+	// lists the Markdown copy it kept and that copy's warnings.
 	res.Notes = append(res.Notes, cp.Notes...)
+	res.Files = append(res.Files, cp.Files...)
+	res.Leftovers, res.Mentions = cp.Leftovers, cp.Mentions
 	if f != nil {
 		return fail(*f)
 	}
-	res.ExportedPath, res.Replaced, res.Leftovers, res.Mentions = cp.Path, cp.Replaced, cp.Leftovers, cp.Mentions
 	if !o.Print && o.OutputPath == "" {
-		if f := runOpener(ctx, deps.Opener, cp.Path); f != nil {
+		if f := runOpener(ctx, deps.Opener, cp.Open); f != nil {
 			return fail(*f)
 		}
 		res.Launched = true
@@ -224,22 +299,28 @@ var exportKinds = map[string]export.Kind{
 	"change": export.KindTicket, "spec": export.KindSpec, "plan": export.KindPlan, "results": export.KindResults,
 }
 
-// exportCopy is what writeCleanCopy wrote: the copy's path, whether it
-// replaced a file, the notes to attach, and the warnings --warnings keeps.
+// exportCopy is what writeCleanCopy wrote: every file, Markdown first; the
+// path to open; the notes to attach; and the warnings --warnings keeps.
 type exportCopy struct {
-	Path      string
-	Replaced  bool
+	Files     []ExportFile
+	Open      string
 	Notes     []string
 	Leftovers []ExportLeftover
 	Mentions  *ExportMentions
 }
 
+// renderPDF renders the clean copy's Markdown to a PDF; tests replace it.
+var renderPDF = pdfrender.Render
+
 // writeCleanCopy reads rel from the local metadata checkout (whatever the
-// repository's open routing), writes its clean copy to the destination
-// outputPath names, and runs the self-check, keeping the warnings the
-// warnings value asks for. Warnings never block. Notes carries the prepare
-// notes even when a failure is returned.
-func writeCleanCopy(ctx context.Context, deps OpenDeps, what, outputPath, warnings, dir string, pin StatusPin, c domain.Change, snap domain.Snapshot, rel string) (exportCopy, *openFailure) {
+// repository's open routing), runs the self-check, and writes the clean copy
+// in each requested format to the destination outputPath names, keeping the
+// warnings the warnings value asks for. Warnings never block. Every
+// destination is resolved and checked before anything is written. The
+// Markdown copy is written first; a PDF failure keeps it and is reported as
+// pdf-failed. Notes, Files, and the warnings carry what was done even when a
+// failure is returned.
+func writeCleanCopy(ctx context.Context, deps OpenDeps, what, outputPath, warnings, dir string, pin StatusPin, c domain.Change, snap domain.Snapshot, rel string, formats ExportFormatSet) (exportCopy, *openFailure) {
 	var cp exportCopy
 	if deps.HomeDir == nil || deps.Getwd == nil || deps.GOOS == "" {
 		return cp, &openFailure{ResultInternalError, ReasonOpenExportFailed, "export is not wired: home directory, working directory, and platform are required"}
@@ -259,42 +340,115 @@ func writeCleanCopy(ctx context.Context, deps OpenDeps, what, outputPath, warnin
 	if cr := c.Created(); cr.State == domain.FieldPresent {
 		created = cr.Value.Format("2006-01-02")
 	}
-	dest, f := exportDestination(deps, outputPath, export.FileName(kind, rel, created, c.Slug()))
+	name := export.FileName(kind, rel, created, c.Slug())
+	stem := strings.TrimSuffix(name, ".md")
+	dest, exact, f := exportDestination(deps, outputPath, name)
 	if f != nil {
 		return cp, f
 	}
-	if f := protectedDestination(dest, src, root); f != nil {
-		return cp, f
+	mdDest, pdfDest := dest, dest
+	switch {
+	case !exact:
+		pdfDest = filepath.Join(filepath.Dir(dest), stem+".pdf")
+	case formats.Markdown && formats.PDF:
+		mdDest, pdfDest = withExportExt(dest, ".md"), withExportExt(dest, ".pdf")
+	}
+	var dests []string
+	if formats.Markdown {
+		dests = append(dests, mdDest)
+	}
+	if formats.PDF {
+		dests = append(dests, pdfDest)
+	}
+	for _, d := range dests {
+		if f := protectedDestination(d, src, root); f != nil {
+			return cp, f
+		}
 	}
 
 	titles := exportTitles(snap)
 	out := export.Transform(export.Input{Kind: kind, Source: body, Title: c.Title(), Titles: titles})
 	report := exportcheck.Check(out.Markdown, func(id int) bool { _, ok := titles[id]; return ok })
+	leftovers, mentions := exportWarnings(warnings, out, report)
 
-	replaced, err := writeExport(dest, out.Markdown)
-	if err != nil {
-		return cp, &openFailure{ResultExternalFailed, ReasonOpenExportFailed, fmt.Sprintf("could not write %s: %v", dest, err)}
+	if formats.Markdown {
+		replaced, err := writeExport(mdDest, out.Markdown)
+		if err != nil {
+			return cp, &openFailure{ResultExternalFailed, ReasonOpenExportFailed, fmt.Sprintf("could not write %s: %v", mdDest, err)}
+		}
+		if replaced {
+			cp.Notes = append(cp.Notes, "replaced "+mdDest)
+		}
+		cp.Files = append(cp.Files, ExportFile{Format: ExportFormatMarkdown, Path: mdDest, Replaced: replaced})
+		cp.Open, cp.Leftovers, cp.Mentions = mdDest, leftovers, mentions
 	}
-	if replaced {
-		cp.Notes = append(cp.Notes, "replaced "+dest)
+	if formats.PDF {
+		pdfFailed := func(msg string) (exportCopy, *openFailure) {
+			if formats.Markdown {
+				msg += " — the Markdown copy is at " + mdDest
+			}
+			return cp, &openFailure{ResultExternalFailed, ReasonOpenPDFFailed, msg}
+		}
+		pdf, placeholders, err := renderPDF(out.Markdown, stem)
+		if err != nil {
+			return pdfFailed("could not render the PDF: " + oneLine(err.Error()))
+		}
+		replaced, err := writeExport(pdfDest, pdf)
+		if err != nil {
+			return pdfFailed(fmt.Sprintf("could not write %s: %s", pdfDest, oneLine(err.Error())))
+		}
+		if replaced {
+			cp.Notes = append(cp.Notes, "replaced "+pdfDest)
+		}
+		switch {
+		case placeholders == 1:
+			cp.Notes = append(cp.Notes, fmt.Sprintf("1 character the PDF fonts cannot draw was replaced with %c", pdfrender.Placeholder))
+		case placeholders > 1:
+			cp.Notes = append(cp.Notes, fmt.Sprintf("%d characters the PDF fonts cannot draw were replaced with %c", placeholders, pdfrender.Placeholder))
+		}
+		cp.Files = append(cp.Files, ExportFile{Format: ExportFormatPDF, Path: pdfDest, Replaced: replaced})
+		cp.Open, cp.Leftovers, cp.Mentions = pdfDest, leftovers, mentions
 	}
-	cp.Path, cp.Replaced = dest, replaced
+	return cp, nil
+}
 
+// exportWarnings builds the warnings the warnings value keeps from the
+// transform's stray markers and the self-check report on the Markdown copy.
+func exportWarnings(warnings string, out export.Output, report exportcheck.Report) ([]ExportLeftover, *ExportMentions) {
+	var leftovers []ExportLeftover
+	var mentions *ExportMentions
 	if warnings == "" {
 		warnings = WarningsAll
 	}
 	if warnings != WarningsMentions {
 		for _, s := range out.Stray {
-			cp.Leftovers = append(cp.Leftovers, ExportLeftover{SourceLine: s.SourceLine, Text: s.Text, Rule: ExportRuleStrayMarker})
+			leftovers = append(leftovers, ExportLeftover{SourceLine: s.SourceLine, Text: s.Text, Rule: ExportRuleStrayMarker})
 		}
 		for _, l := range report.Leftovers {
-			cp.Leftovers = append(cp.Leftovers, ExportLeftover{Line: l.Line, Text: l.Text, Rule: l.Rule})
+			leftovers = append(leftovers, ExportLeftover{Line: l.Line, Text: l.Text, Rule: l.Rule})
 		}
 	}
 	if warnings != WarningsLeftovers {
-		cp.Mentions = &ExportMentions{Count: report.Mentions.Count, Lines: append([]int{}, report.Mentions.Lines...)}
+		mentions = &ExportMentions{Count: report.Mentions.Count, Lines: append([]int{}, report.Mentions.Lines...)}
 	}
-	return cp, nil
+	return leftovers, mentions
+}
+
+// withExportExt gives an exact --output-path file its format's extension: the
+// base's extension is replaced when there is a stem before it, and the
+// extension is appended otherwise (report, report.txt, report.md → report.md).
+func withExportExt(p, ext string) string {
+	base := filepath.Base(p)
+	if e := filepath.Ext(base); e != "" && e != base {
+		return strings.TrimSuffix(p, e) + ext
+	}
+	return p + ext
+}
+
+// oneLine folds an error text onto one line, so a failure message stays one
+// line whatever the error says.
+func oneLine(s string) string {
+	return strings.Join(strings.Fields(s), " ")
 }
 
 // exportTitles maps every change id exactly one record claims to its title; an
@@ -317,10 +471,11 @@ func exportTitles(snap domain.Snapshot) export.Titles {
 // output path it goes to ~/Downloads on darwin (refused when missing) and the
 // home directory elsewhere. An existing directory takes the copy under name;
 // any other output path is the exact file, relative to the working directory,
-// and its parent directory must exist.
-func exportDestination(deps OpenDeps, outputPath, name string) (string, *openFailure) {
-	invalid := func(msg string) (string, *openFailure) {
-		return "", &openFailure{ResultInvalidState, ReasonOpenOutputPathInvalid, msg}
+// and its parent directory must exist. exact reports that last case: the
+// output path named a file rather than a directory or the default.
+func exportDestination(deps OpenDeps, outputPath, name string) (dest string, exact bool, f *openFailure) {
+	invalid := func(msg string) (string, bool, *openFailure) {
+		return "", false, &openFailure{ResultInvalidState, ReasonOpenOutputPathInvalid, msg}
 	}
 	if outputPath == "" {
 		home, err := deps.HomeDir()
@@ -334,7 +489,7 @@ func exportDestination(deps OpenDeps, outputPath, name string) (string, *openFai
 				return invalid(fmt.Sprintf("%s does not exist — pass --output-path to choose where the export goes", dir))
 			}
 		}
-		return filepath.Join(dir, name), nil
+		return filepath.Join(dir, name), false, nil
 	}
 	path := outputPath
 	if !filepath.IsAbs(path) {
@@ -345,13 +500,13 @@ func exportDestination(deps OpenDeps, outputPath, name string) (string, *openFai
 		path = filepath.Join(wd, path)
 	}
 	if info, err := os.Stat(path); err == nil && info.IsDir() {
-		return filepath.Join(path, name), nil
+		return filepath.Join(path, name), false, nil
 	}
 	parent := filepath.Dir(path)
 	if info, err := os.Stat(parent); err != nil || !info.IsDir() {
 		return invalid(fmt.Sprintf("%s is not an existing directory — create it or choose another --output-path", parent))
 	}
-	return path, nil
+	return path, true, nil
 }
 
 // protectedDestination refuses a destination that is the source artifact or
