@@ -14,7 +14,7 @@ related: [589, 561]
 discovered_from: []
 adrs: []
 spec: 'docs/superpowers/specs/2026-11-21-export-as-pdf-alongside-markdown-docket-export-format-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-11-20-export-as-pdf-alongside-markdown-docket-export-format.md'
 results:
 auto_groomable:
 hold:
@@ -34,6 +34,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-11-21-export-as-pdf-alongside-markdown-docket-export-format-design.md](../../superpowers/specs/2026-11-21-export-as-pdf-alongside-markdown-docket-export-format-design.md) |
+| Plan | [2026-11-20-export-as-pdf-alongside-markdown-docket-export-format.md](../../superpowers/plans/2026-11-20-export-as-pdf-alongside-markdown-docket-export-format.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
