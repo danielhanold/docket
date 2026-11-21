@@ -75,6 +75,6 @@ Unchanged against main 13cc9015c: export has no --format flag yet, no PDF render
 <!-- docket:build-evidence:start -->
 command:  go run ./cmd/docket development test
 result:   green
-head_sha: b1cd9a18431c47b9846049275aed4fc451ac9324
-ran_at:   2026-11-21T02:00:39Z
+head_sha: afaf1521e009cf4e5eae01c841914bced3f9828c
+ran_at:   2026-11-21T13:10:26Z
 <!-- docket:build-evidence:end -->
