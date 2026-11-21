@@ -2,3 +2,8 @@ docket
 Copyright 2026 Daniel Hanold
 
 This product is licensed under the Apache License, Version 2.0; see LICENSE.
+
+This product embeds third-party fonts in internal/pdfrender/fonts/: DejaVu
+Fonts 2.37, under the Bitstream Vera / DejaVu fonts licence (LICENSE-DejaVu.txt),
+and Google Noto Emoji, under the SIL Open Font License 1.1 (OFL-NotoEmoji.txt).
+See internal/pdfrender/fonts/README.md for their sources.
