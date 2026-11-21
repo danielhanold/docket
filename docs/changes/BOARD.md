@@ -1,12 +1,12 @@
 # Backlog
 
-**594 changes** — 🟢 1 in progress · 🟡 5 proposed · ⚪ 15 deferred · ✅ 428 done · 🗑️ 145 killed
+**594 changes** — 🔵 1 built · 🟡 5 proposed · ⚪ 15 deferred · ✅ 428 done · 🗑️ 145 killed
 
-## 🟢 In progress (1)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Spec | Branch | State |
-|---|-------|----------|------|------|--------|-------|
-| [0594](active/0594-export-as-pdf-alongside-markdown-docket-export-format.md) | Export as PDF alongside Markdown: docket export --format | `medium` | `feat` | [spec](../superpowers/specs/2026-11-21-export-as-pdf-alongside-markdown-docket-export-format-design.md) | `feat/export-as-pdf-alongside-markdown-docket-export-format` | building |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0594](active/0594-export-as-pdf-alongside-markdown-docket-export-format.md) | Export as PDF alongside Markdown: docket export --format | `medium` | `feat` | [#458](https://github.com/danielhanold/docket/pull/458) | awaiting merge |
 
 ## 🟡 Proposed (5)
 

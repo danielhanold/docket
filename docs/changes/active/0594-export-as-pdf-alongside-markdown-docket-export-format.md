@@ -2,7 +2,7 @@
 id: 594
 slug: 'export-as-pdf-alongside-markdown-docket-export-format'
 title: 'Export as PDF alongside Markdown: docket export --format'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'feat'
 deliverable: 'pr'
@@ -20,7 +20,7 @@ auto_groomable:
 hold:
 branch_prefix:
 branch: 'feat/export-as-pdf-alongside-markdown-docket-export-format'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/458'
 ticket_provider:
 ticket_id:
 ticket_url:
@@ -69,3 +69,12 @@ Exported changes, specs, plans, and results files get shared with colleagues on 
 ### 2026-11-21
 
 Unchanged against main 13cc9015c: export has no --format flag yet, no PDF renderer or goldmark/fpdf dependency exists, and related #589/#561 are done; spec holds as written.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: b1cd9a18431c47b9846049275aed4fc451ac9324
+ran_at:   2026-11-21T02:00:39Z
+<!-- docket:build-evidence:end -->
