@@ -91,6 +91,8 @@ func (w *walker) block(n ast.Node) {
 		w.codeBlock(n)
 	case *ast.HTMLBlock:
 		w.literalLines(n)
+	case *extast.Table:
+		w.table(n)
 	case *ast.ThematicBreak:
 		w.l.gap(bodySize * 0.3)
 		w.l.rule()

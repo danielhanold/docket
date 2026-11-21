@@ -51,3 +51,14 @@ Checked by scanning every corpus file outside fences and code spans:
 | CRLF line endings | `TestTransformNormalizesCRLF` |
 | An id two records claim | the app-layer export tests |
 | A `## Acceptance criteria` section | `TestTransformTicket` |
+
+## The PDF corpus test
+
+`TestCorpusRendersToPDF` (`pdf_corpus_test.go`) renders every file's clean copy to PDF and
+requires the placeholder count to equal the number of characters above U+FFFF, which holds
+because every BMP character here is one the PDF fonts draw. Its non-ASCII text is narrow:
+punctuation and dashes, the arrows `→` and `↩`, the math signs `×`, `≤`, and `⊆`, and a single
+character above U+FFFF (the `🟡` in `specs/2026-07-20-frontmatter-field-domain-guard-design.md`).
+It holds no emoji the fonts draw, no box-drawing characters, and none of the wider math and
+symbol ranges the renderer supports, so their coverage lives in `internal/pdfrender`'s own
+constructed tests.
