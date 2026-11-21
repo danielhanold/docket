@@ -1534,10 +1534,11 @@ var alignmentContracts = []proseContract{
 	{sentinel: "change_0578_export_skill", file: "skills/docket-export/SKILL.md",
 		present: []string{
 			"**Never build an export by hand, and never send the raw file.**",
-			"Run the `export` argv as `<export argv> <what> [<id>] --print --json --repo-dir <repo root>`",
+			"Run the `export` argv as `<export argv> <what> [<id>] --format markdown --print --json --repo-dir <repo root>`",
+			"Always `--format markdown`: the rewrite pass edits the Markdown copy, and a PDF written beside it would keep the unrewritten text.",
 			"take the `argv` of the entries `export`, `repository.prepare`, and `diagnostic.config`",
 			"**A failed export posts nothing.**",
-			"If `result` is not `applied` or there is no `exported_path`, tell the person the `message` and stop",
+			"If `result` is not `applied` or `files` has no `markdown` entry, tell the person the `message` and stop",
 			"Never fall back to the raw file or a hand cleanup",
 			"the visibility is unknown, so **treat the repository as private**",
 			"this is not a docket artifact",
@@ -1547,7 +1548,7 @@ var alignmentContracts = []proseContract{
 			"show the person every change as before → after and **post only after they say go**",
 			"Creating a ticket from a change, or linking or importing one, is `docket-link-ticket`'s job; it calls this skill only for a file export.",
 		},
-		absent: []string{"context: fork", "agent: docket-export", "a Jira ticket body or comment", "--export", "the `open` argv"}},
+		absent: []string{"context: fork", "agent: docket-export", "a Jira ticket body or comment", "--export", "the `open` argv", "exported_path"}},
 	// 0578 review: the export reports neither ADR numbers nor bare #N, so the private
 	// ADR/change-number rewrite runs on every private export, not only on leftovers or mentions.
 	{sentinel: "change_0578_export_skill", file: "skills/docket-export/SKILL.md",
