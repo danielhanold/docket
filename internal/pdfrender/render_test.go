@@ -510,3 +510,28 @@ func FuzzRender(f *testing.F) {
 		}
 	})
 }
+
+// TestRenderHeadingKeepsWithNext checks a heading is never left alone at a
+// page bottom: for every amount of text before it, the heading lands on the
+// same page as the first line that follows it.
+func TestRenderHeadingKeepsWithNext(t *testing.T) {
+	for n := 30; n < 80; n++ {
+		md := strings.Repeat("filler line\n\n", n) + "## Keepheading\n\nFollowbody\n"
+		r := record(md)
+		hp, bp := -1, -1
+		for _, d := range r.ops {
+			switch d.s {
+			case "Keepheading":
+				hp = d.page
+			case "Followbody":
+				bp = d.page
+			}
+		}
+		if hp < 0 || bp < 0 {
+			t.Fatalf("n=%d: heading page %d, body page %d: text not found", n, hp, bp)
+		}
+		if hp != bp {
+			t.Fatalf("n=%d: heading on page %d, its next line on page %d", n, hp, bp)
+		}
+	}
+}

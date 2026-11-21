@@ -75,7 +75,7 @@ which. Warnings never block.`,
 			return nil
 		},
 	}
-	cmd.Flags().StringSlice("format", nil, "which `formats` to write: markdown, pdf, or both, comma-separated or repeated (default: markdown and pdf)")
+	cmd.Flags().StringSlice("format", nil, "which `list` to write: markdown, pdf, or both, comma-separated or repeated (default: markdown and pdf)")
 	cmd.Flags().String("output-path", "", "directory or exact file `path` for the files, which are then not opened (default: ~/Downloads on macOS, the home directory on Linux)")
 	cmd.Flags().String("warnings", app.WarningsAll, "`which` warnings to report: all, leftovers, or mentions")
 	cmd.Flags().Bool("print", false, "print the written files' paths without opening any")
