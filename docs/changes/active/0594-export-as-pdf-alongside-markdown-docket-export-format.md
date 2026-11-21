@@ -25,7 +25,7 @@ ticket_provider:
 ticket_id:
 ticket_url:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -60,3 +60,9 @@ Exported changes, specs, plans, and results files get shared with colleagues on 
 - PDF output from the `docket-export` agent skill.
 - Colour emoji, syntax highlighting, clickable links, a table of contents, and CJK text.
 - A configuration key for the default format.
+
+## Reconcile log
+
+### 2026-11-21
+
+Unchanged against main 13cc9015c: export has no --format flag yet, no PDF renderer or goldmark/fpdf dependency exists, and related #589/#561 are done; spec holds as written.
