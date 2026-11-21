@@ -115,8 +115,8 @@ func TestRenderNonBMPIsPlaceholderEverywhere(t *testing.T) {
 }
 
 func TestRenderDropsInvisibles(t *testing.T) {
-	// U+2705 has no DejaVu glyph, so it falls back to Noto Emoji. U+26A0 has
-	// a DejaVu glyph, so the style's own face draws it.
+	// U+2705 has no Inter or DejaVu glyph, so it falls back to Noto Emoji.
+	// U+26A0 has an Inter glyph, so the style's own face draws it.
 	r, _, n := renderRec(t, "\u2705\uFE0F ok \u26A0\uFE0F a\u200Db\u200Bc\u2060d\uFEFFe\n")
 	if n != 0 {
 		t.Errorf("placeholders = %d, want 0", n)
@@ -231,11 +231,21 @@ func TestRenderHeadings(t *testing.T) {
 			t.Errorf("%s size %.2f not below the previous %.2f", s, d.size, prev)
 		}
 		prev = d.size
-		if i < 5 && d.size <= bodySize {
-			t.Errorf("%s size %.2f not above the body size %.2f", s, d.size, bodySize)
+		if d.size != headingSizes[i] {
+			t.Errorf("%s size %.2f, want %.2f", s, d.size, headingSizes[i])
 		}
-		if i == 5 && d.size < bodySize {
-			t.Errorf("F size %.2f below the body size %.2f", d.size, bodySize)
+	}
+	// GitHub's proportions: H1 to H3 above the body size, H4 at it, H5 and
+	// H6 below it.
+	for i, cmp := range []int{1, 1, 1, 0, -1, -1} {
+		got := 0
+		if headingSizes[i] > bodySize {
+			got = 1
+		} else if headingSizes[i] < bodySize {
+			got = -1
+		}
+		if got != cmp {
+			t.Errorf("H%d size %.2f against body %.2f: got side %d, want %d", i+1, headingSizes[i], bodySize, got, cmp)
 		}
 	}
 }

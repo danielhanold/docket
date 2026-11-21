@@ -38,8 +38,9 @@ func Render(markdown []byte, fallbackTitle string) (pdf []byte, placeholders int
 	return buf.Bytes(), n, nil
 }
 
-// headingSizes are the font sizes of H1 to H6; H6 is the body size.
-var headingSizes = [6]float64{22, 18, 15, 13, 11.5, bodySize}
+// headingSizes are the font sizes of H1 to H6, in GitHub's proportions to
+// the body size: 2, 1.5, 1.25, 1, 0.875, and 0.85 em.
+var headingSizes = [6]float64{2 * bodySize, 1.5 * bodySize, 1.25 * bodySize, bodySize, 0.875 * bodySize, 0.85 * bodySize}
 
 // render parses md and draws it on c, returning the document title and the
 // placeholder count. Render and the tests share it.

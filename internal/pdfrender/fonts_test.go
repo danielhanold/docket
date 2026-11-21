@@ -32,22 +32,32 @@ func TestFontsParse(t *testing.T) {
 // font's cmap has them: fpdf cannot embed them, so they must become the
 // placeholder.
 func TestFaceCoverage(t *testing.T) {
-	for _, r := range "—→…§–·×“”↩─│└├═⇒≤≥≠≈∈⊆⊕∧¬①②⟨⟩" {
-		if !faceSans.covers(r) {
-			t.Errorf("faceSans does not cover %q (U+%04X)", r, r)
-		}
-	}
-	for _, r := range "✅❌⏳⚠⛔⚪⭐⏺" {
-		if !faceEmoji.covers(r) {
-			t.Errorf("faceEmoji does not cover %q (U+%04X)", r, r)
-		}
-	}
-	for _, r := range []rune{Placeholder, '☐', '☑'} {
+	for _, r := range "—→…§–·×“”↩⇒≤≥≠≈⊕¬①②•⚠" {
 		for _, f := range []face{faceSans, faceSansBold} {
 			if !f.covers(r) {
 				t.Errorf("face %s/%q does not cover %q (U+%04X)", f.family(), f.style(), r, r)
 			}
 		}
+	}
+	// Inter lacks these, so DejaVu Sans draws them.
+	for _, r := range "─│└├═∈⊆∧⟨⟩☐☑" {
+		if faceSans.covers(r) {
+			t.Errorf("faceSans covers %q (U+%04X); the fallback test below no longer proves the fallback", r, r)
+		}
+		if !faceFallback.covers(r) {
+			t.Errorf("faceFallback does not cover %q (U+%04X)", r, r)
+		}
+		if f, ok := faceFor(r, bodyStyle); !ok || f != faceFallback {
+			t.Errorf("faceFor(%q) = %d, %v; want faceFallback", r, f, ok)
+		}
+	}
+	for _, r := range "✅❌⏳⛔⭐⏺" {
+		if !faceEmoji.covers(r) {
+			t.Errorf("faceEmoji does not cover %q (U+%04X)", r, r)
+		}
+	}
+	if !faceFallback.covers(Placeholder) {
+		t.Errorf("faceFallback does not cover the placeholder %q", Placeholder)
 	}
 	for _, r := range []rune{'🟡', '🗑', '🟢', '中'} {
 		for _, f := range allFaces {
