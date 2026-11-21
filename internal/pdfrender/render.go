@@ -135,6 +135,8 @@ func (w *walker) heading(n *ast.Heading) {
 		}
 	}
 	w.l.gap(size * 0.8)
+	// Keep with next: never leave a heading alone at a page bottom.
+	w.l.ensure(size*lineFactor + bodySize*lineFactor)
 	w.l.paragraph(runs, size)
 }
 
