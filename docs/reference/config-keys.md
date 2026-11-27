@@ -65,6 +65,7 @@ Each key has one scope:
 | `tickets.auto.pr_opened` | `false` | any layer | when on, `docket-implement-next` posts an update to the change's ticket after its pull request opens |
 | `tickets.auto.pr_merged` | `false` | any layer | when on, `docket-finalize-change` posts an update to the change's ticket after it closes out the merged change |
 | `tickets.auto.results_completed` | `false` | any layer | when on, `docket-implement-next` posts an update to the change's ticket after a results-only change completes |
+| `leak_check.match_word` | `true` | any layer | whether the bare word "docket" counts as a leak in a private repository's pushes, pull requests, and automatic ticket updates; `false` lets it through, while markers, trailers, `.docket` paths, `dckt`, and change ids are still caught |
 | `agent_harnesses` | none | any layer | the dispatch opt-in (below) |
 | `agents.<harness>.<agent>.model` / `.effort` | the built-in table | global-only | model and effort pins for docket's agents |
 
@@ -75,10 +76,11 @@ workflow that just finished an event post that event's update to the change's ti
 as a comment, with nothing asked. Creating a ticket has no switch: it is always on request
 ([why](../concepts/tickets.md#why-docket-never-creates-a-ticket-by-itself)). Off (the default)
 means nothing is posted or reported, unless docket's own read of the change fails, and a switch
-does nothing for a change with no ticket. In a private repository an automatic update posts
-nothing and reports one line. Each setting can come from any layer, so `provider` and
-`site` can be set once in the global config, and a switch can be tried on one machine in
-`.docket.local.yml`. To cancel a global value for one repository, write the default in
+does nothing for a change with no ticket. In a private repository an automatic update attaches
+cleaned copies of its files and is posted only when the leak check finds nothing in the comment or
+any attachment; otherwise nothing is posted and the run reports one line. Each setting can come
+from any layer, so `provider` and `site` can be set once in the global config, and a switch can be
+tried on one machine in `.docket.local.yml`. To cancel a global value for one repository, write the default in
 `.docket.yml` (for everyone) or `.docket.local.yml` (for this clone): `project: ""` for a setting,
 `pr_opened: false` for a switch. A bare `project:` with nothing after it is not an empty value and
 is rejected. A private repository reads the global config and `.git/dckt/config.yml`, so its

@@ -100,10 +100,18 @@ duplicate is deleted by hand.
 **What goes with an update.** In a shared repository, the comment carries
 links to the spec and the results file, each pinned to the commit that holds
 it, so a reader sees the file as it stood when the update was written. In a
-private repository those files cannot be linked. There, an on-request update
-attaches cleaned copies of them instead and posts the comment only after
-every attachment lands, and an automatic update posts nothing and reports one
-line. The pull request link stays a link in both.
+private repository those files cannot be linked. There, an update attaches
+cleaned copies of them instead and posts the comment only after every
+attachment lands. On request, you see what the cleanup rewrote before
+anything is posted. An automatic update has nobody to show it to, so a final
+leak check runs over the comment and every attachment before anything is
+uploaded, with the same rules a private repository's pushes and pull requests
+are checked against. Any hit, or a check that cannot run, posts nothing, and
+the run reports one line. The check does not look for docket's ADR numbers,
+a change number written without a leading zero (`#612`), a bare number, or
+the words "backlog" and "board"; those rely on the cleanup, which always
+rewrites docket's change and ADR numbers. The pull request link stays a link
+in both.
 
 **The connector.** Docket reaches the ticket system only through the tools
 the running agent session already has, such as an MCP server or plugin you
@@ -151,6 +159,8 @@ it is written from the files as they stand then.
 - An automatic update posts only when its switch is on and the change
   already has a ticket. With the switch off, nothing is posted and nothing is
   reported, unless docket's own read of the change fails.
+- In a private repository, an automatic update is posted only when the
+  final leak check finds nothing in the comment or any attachment.
 - An update is reported as posted only with the connector's confirmation.
 - A failed update never stops, fails, or retries a run. A duplicate comment
   is deleted by hand.
@@ -248,11 +258,13 @@ rule for which changes are ready, more than one setting, and a set of special
 cases, all to save you one sentence.
 
 So the trigger is you. Say `create a Jira ticket from #12` when the change
-is ready, whenever that is. From then on, in a shared repository, the
-switches keep the ticket current without you.
+is ready, whenever that is. From then on, the switches keep the ticket
+current without you.
 
 ## Decided in
 
+- ADR-0165 — Unattended private ticket updates post only on a clean final
+  leak check.
 - ADR-0163 — Automatic ticket updates are per-event switches; ticket creation
   is never automatic.
 - ADR-0162 — made ticket work two skills that run inline and post through
@@ -263,6 +275,9 @@ switches keep the ticket current without you.
 - ADR-0161 — stored a change's ticket link as three flat fields (the ticket
   system, the id, and the web address), written together or not at all, with
   a broken set reported, never blocking.
+- [ADR-0144](../adrs/0144-private-visibility-leak-check-blocks-outgoing-pushes-and-pr.md)
+  — refused any push or pull request from a private repository that carries
+  docket's text, with the patterns the final leak check reuses.
 - [ADR-0044](../adrs/0044-autonomy-precedence-call-site-pre-specification.md)
   — made the instruction written where a workflow invokes another skill
   decide that skill's outcome, which is how a workflow tells
