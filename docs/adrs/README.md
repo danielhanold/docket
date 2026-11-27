@@ -146,6 +146,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0162](0162-ticket-work-is-two-inline-skills-split-by-attended-linking-v.md) — Ticket work is two inline skills, split by attended linking versus updating (Accepted) ← change #584 · relates to ADR-0161, ADR-0044
 - [ADR-0163](0163-automatic-ticket-updates-are-per-event-switches-ticket-creat.md) — Automatic ticket updates are per-event switches; ticket creation is never automatic (Accepted) ← change #587 · relates to ADR-0044, ADR-0162
 - [ADR-0164](0164-render-pdf-exports-in-process-with-a-docket-owned-goldmark-f.md) — Render PDF exports in-process with a docket-owned goldmark + fpdf renderer and embedded fonts (Accepted) ← change #594
+- [ADR-0165](0165-unattended-private-ticket-updates-post-only-on-a-clean-final.md) — Unattended private ticket updates post only on a clean final leak check (Accepted) ← change #588 · relates to ADR-0144, ADR-0163, ADR-0162, ADR-0044
 
 ## Superseded / Reversed
 
