@@ -79,6 +79,8 @@ var assetIndependent = map[string]bool{
 	"run continue":                   true,
 	"run cancel":                     true,
 	"run reset-halts":                true,
+	"leak":                           true, // the group itself; it reports a missing command
+	"leak check":                     true,
 	"learning":                       true, // the group itself; it reports a missing command
 	"learning record":                true,
 	"learning update":                true,
