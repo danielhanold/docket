@@ -14,7 +14,7 @@ related: [581]
 discovered_from: [581]
 adrs: [44, 144, 162, 163]
 spec: 'docs/superpowers/specs/2026-11-27-update-tickets-automatically-in-a-private-repository-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-11-26-update-tickets-automatically-in-a-private-repository.md'
 results:
 auto_groomable:
 hold:
@@ -31,6 +31,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-11-27-update-tickets-automatically-in-a-private-repository-design.md](../../superpowers/specs/2026-11-27-update-tickets-automatically-in-a-private-repository-design.md) |
+| Plan | [2026-11-26-update-tickets-automatically-in-a-private-repository.md](../../superpowers/plans/2026-11-26-update-tickets-automatically-in-a-private-repository.md) |
 | ADRs | [ADR-0044](../../adrs/0044-autonomy-precedence-call-site-pre-specification.md), [ADR-0144](../../adrs/0144-private-visibility-leak-check-blocks-outgoing-pushes-and-pr.md), [ADR-0162](../../adrs/0162-ticket-work-is-two-inline-skills-split-by-attended-linking-v.md), [ADR-0163](../../adrs/0163-automatic-ticket-updates-are-per-event-switches-ticket-creat.md) |
 <!-- docket:artifacts:end -->
 
