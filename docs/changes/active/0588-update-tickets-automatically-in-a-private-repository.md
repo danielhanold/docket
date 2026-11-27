@@ -2,7 +2,7 @@
 id: 588
 slug: 'update-tickets-automatically-in-a-private-repository'
 title: 'Update tickets automatically in a private repository'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'feat'
 deliverable: 'pr'
@@ -19,7 +19,7 @@ results:
 auto_groomable:
 hold:
 branch_prefix:
-branch:
+branch: 'feat/update-tickets-automatically-in-a-private-repository'
 pr:
 blocked_by:
 reconciled: false

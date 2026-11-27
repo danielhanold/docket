@@ -1,12 +1,12 @@
 # Backlog
 
-**594 changes** — 🟣 1 groomed · 🟡 4 proposed · ⚪ 15 deferred · ✅ 429 done · 🗑️ 145 killed
+**594 changes** — 🟢 1 in progress · 🟡 4 proposed · ⚪ 15 deferred · ✅ 429 done · 🗑️ 145 killed
 
-## 🟣 Groomed (1)
+## 🟢 In progress (1)
 
-| # | Title | Priority | Type | Spec | Readiness |
-|---|-------|----------|------|------|-----------|
-| [0588](active/0588-update-tickets-automatically-in-a-private-repository.md) | Update tickets automatically in a private repository | `medium` | `feat` | [spec](../superpowers/specs/2026-11-27-update-tickets-automatically-in-a-private-repository-design.md) | build-ready |
+| # | Title | Priority | Type | Spec | Branch | State |
+|---|-------|----------|------|------|--------|-------|
+| [0588](active/0588-update-tickets-automatically-in-a-private-repository.md) | Update tickets automatically in a private repository | `medium` | `feat` | [spec](../superpowers/specs/2026-11-27-update-tickets-automatically-in-a-private-repository-design.md) | `feat/update-tickets-automatically-in-a-private-repository` | building |
 
 ## 🟡 Proposed (4)
 
