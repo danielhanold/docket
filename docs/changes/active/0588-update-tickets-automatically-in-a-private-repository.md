@@ -22,7 +22,7 @@ branch_prefix:
 branch: 'feat/update-tickets-automatically-in-a-private-repository'
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -55,3 +55,9 @@ A new read-only operation, `docket leak check --file …`, exposes the leak matc
 
 - Widening the leak patterns.
 - Running the final check on on-request updates, or changing `docket-export`.
+
+## Reconcile log
+
+### 2026-11-27
+
+Unchanged against main `fb655faed`: dependencies #586 and #587 are done, the spec's traced anchors (`leakOptions`, `runLeakCheck`, `leakCheckApplies`, automatic.md's private clause) still hold, and scope stands.
