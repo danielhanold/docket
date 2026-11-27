@@ -275,8 +275,7 @@ current without you.
 - ADR-0161 — stored a change's ticket link as three flat fields (the ticket
   system, the id, and the web address), written together or not at all, with
   a broken set reported, never blocking.
-- [ADR-0144](../adrs/0144-private-visibility-leak-check-blocks-outgoing-pushes-and-pr.md)
-  — refused any push or pull request from a private repository that carries
+- ADR-0144 — refused any push or pull request from a private repository that carries
   docket's text, with the patterns the final leak check reuses.
 - [ADR-0044](../adrs/0044-autonomy-precedence-call-site-pre-specification.md)
   — made the instruction written where a workflow invokes another skill
