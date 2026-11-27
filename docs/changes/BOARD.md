@@ -1,13 +1,18 @@
 # Backlog
 
-**594 changes** — 🟡 5 proposed · ⚪ 15 deferred · ✅ 429 done · 🗑️ 145 killed
+**594 changes** — 🟣 1 groomed · 🟡 4 proposed · ⚪ 15 deferred · ✅ 429 done · 🗑️ 145 killed
 
-## 🟡 Proposed (5)
+## 🟣 Groomed (1)
+
+| # | Title | Priority | Type | Spec | Readiness |
+|---|-------|----------|------|------|-----------|
+| [0588](active/0588-update-tickets-automatically-in-a-private-repository.md) | Update tickets automatically in a private repository | `medium` | `feat` | [spec](../superpowers/specs/2026-11-27-update-tickets-automatically-in-a-private-repository-design.md) | build-ready |
+
+## 🟡 Proposed (4)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
 | [0593](active/0593-fix-two-glossary-entries-for-automatic-ticket-updates.md) | Fix two glossary entries for automatic ticket updates | `low` | `docs` | needs-grooming |
-| [0588](active/0588-update-tickets-automatically-in-a-private-repository.md) | Update tickets automatically in a private repository | `medium` | `feat` | needs-grooming |
 | [0590](active/0590-have-reviewers-check-a-build-against-its-acceptance-criteria.md) | Have reviewers check a build against its acceptance criteria when the change has them | `medium` | `feat` | needs-grooming |
 | [0576](active/0576-run-the-brainstorm-builder-check-on-a-pinned-cheaper-model-a.md) | Run the brainstorm builder check on a pinned, cheaper model and effort | `high` | `feat` | needs-grooming |
 | [0572](active/0572-let-a-finalize-loop-carry-on-past-a-blocked-change.md) | Let a finalize loop carry on past a blocked change | `medium` | `feat` | needs-grooming |
