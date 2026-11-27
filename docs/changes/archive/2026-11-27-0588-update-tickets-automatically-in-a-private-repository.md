@@ -2,7 +2,7 @@
 id: 588
 slug: 'update-tickets-automatically-in-a-private-repository'
 title: 'Update tickets automatically in a private repository'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'feat'
 deliverable: 'pr'
@@ -31,6 +31,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-11-27-update-tickets-automatically-in-a-private-repository-design.md](../../superpowers/specs/2026-11-27-update-tickets-automatically-in-a-private-repository-design.md) |
+| Spec (merged) | [2026-11-27-update-tickets-automatically-in-a-private-repository-design.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/specs/2026-11-27-update-tickets-automatically-in-a-private-repository-design.md) |
 | Plan | [2026-11-26-update-tickets-automatically-in-a-private-repository.md](../../superpowers/plans/2026-11-26-update-tickets-automatically-in-a-private-repository.md) |
 | Results | [2026-11-26-update-tickets-automatically-in-a-private-repository-results.md](../../results/2026-11-26-update-tickets-automatically-in-a-private-repository-results.md) |
 | ADRs | [ADR-0044](../../adrs/0044-autonomy-precedence-call-site-pre-specification.md), [ADR-0144](../../adrs/0144-private-visibility-leak-check-blocks-outgoing-pushes-and-pr.md), [ADR-0162](../../adrs/0162-ticket-work-is-two-inline-skills-split-by-attended-linking-v.md), [ADR-0163](../../adrs/0163-automatic-ticket-updates-are-per-event-switches-ticket-creat.md), [ADR-0165](../../adrs/0165-unattended-private-ticket-updates-post-only-on-a-clean-final.md) |

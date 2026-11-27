@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0588 — Update tickets automatically in a private repository](../../changes/active/0588-update-tickets-automatically-in-a-private-repository.md)**
+> ↩ **[Change 0588 — Update tickets automatically in a private repository](../../changes/archive/2026-11-27-0588-update-tickets-automatically-in-a-private-repository.md)**
 <!-- docket:backlink:end -->
 
 # Update tickets automatically in a private repository Implementation Plan
