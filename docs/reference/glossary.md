@@ -859,6 +859,17 @@ links pinned to the metadata commit the read took.
 docket context ticket --id 412 --event pr_opened --json
 ```
 
+### Leak check
+
+The read-only check `docket-update-ticket` runs before an automatic update in a private
+repository. It scans each file it is given, and each file's name, with the rules a private
+repository's pushes and pull requests are checked against, and reports every hit with its file,
+line, matched text, and rule. A file it cannot read is refused, never reported clean.
+
+```sh
+docket leak check --file comment.md --file spec.md --json
+```
+
 ### Implement-next / the drainer
 
 `docket-implement-next` — the autonomous workflow that picks the next build-ready change (or the
@@ -1855,7 +1866,8 @@ itself after an event whose switch is on. It posts one short comment through the
 connector, with spec and results links pinned to the commit that holds them, and reports the update
 as posted only when the connector confirms. In a private repository it attaches cleaned copies of
 the spec and results instead of linking them, and posts the comment only after every attachment
-lands. An automatic update in a private repository posts nothing and reports one line.
+lands. An automatic update there is posted only when the leak check finds nothing in the comment
+or any attachment.
 
 **Used for:** telling people in the ticket system that something happened. It runs inline, in
 whichever session or workflow agent invokes it, because it posts through that session's own
@@ -2452,6 +2464,7 @@ docket development install --source ~/dev/docket
 - [Interactive vs autonomous skills](#interactive-vs-autonomous-skills)
 - [Keeping docket current](#keeping-docket-current)
 - [Launch-then-observe / detached run](#launch-then-observe--detached-run)
+- [Leak check](#leak-check)
 - [Learnings / finding / promotion](#learnings--finding--promotion)
 - [Learnings index / read on demand](#learnings-index--read-on-demand)
 - [Learnings ledger / war story / promotion_state](#learnings-ledger--war-story--promotion_state)

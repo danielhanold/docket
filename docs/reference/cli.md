@@ -46,6 +46,8 @@ Each line is a pointer: the command, what its verbs govern, and where to read th
   harnesses. Its verbs are `docket install check`, which reports whether this machine's
   installation is current and writes nothing, and `docket install collect`, which reclaims
   verified unreferenced installed version trees. Verbs: `docket install --help`.
+- **`docket leak`** — check files bound for outsiders against the leak check's rules (read-only).
+  Verbs: `docket leak --help`.
 - **`docket learning`** — record and update learning findings. Verbs: `docket learning --help`.
 - **`docket maintenance`** — close out merged changes and retry close-out cleanup in one pass
   (`docket status` stays read-only). Verbs: `docket maintenance --help`.

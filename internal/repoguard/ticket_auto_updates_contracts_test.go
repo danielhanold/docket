@@ -136,10 +136,17 @@ var autoTicketContracts = []autoTicketContract{
 			"`tickets.auto.results_completed`",
 			"retry uploads after a timeout",
 			"agents report on tickets, and people create them",
-			"an automatic update posts nothing and reports one line",
+			"a final leak check runs over the comment and every attachment before anything is uploaded",
+			"In a private repository, an automatic update is posted only when the final leak check finds nothing in the comment or any attachment.",
 			"ADR-0163 — Automatic ticket updates are per-event switches; ticket creation is never automatic.",
+			"ADR-0165 — Unattended private ticket updates post only on a clean final leak check.",
+			"ADR-0144",
 		},
-		absent: []string{"change_created", "was once planned", "dropped"}},
+		absent: []string{
+			"change_created", "was once planned", "dropped",
+			"an automatic update posts nothing and reports one line",
+			"From then on, in a shared repository, the switches",
+		}},
 	{file: "docs/concepts/README.md",
 		present: []string{"[Tickets](./tickets.md)"}},
 	{file: "docs/README.md",
@@ -149,21 +156,40 @@ var autoTicketContracts = []autoTicketContract{
 			"Creating a ticket has no switch: it is always on request",
 			"../concepts/tickets.md#why-docket-never-creates-a-ticket-by-itself",
 			"Off (the default) means nothing is posted or reported, unless docket's own read of the change fails",
+			"| `leak_check.match_word` | `true` | any layer |",
+			"is posted only when the leak check finds nothing in the comment or any attachment",
 		},
-		absent: []string{"means nothing is posted or reported, and a switch"}},
+		absent: []string{
+			"means nothing is posted or reported, and a switch",
+			"In a private repository an automatic update posts nothing and reports one line.",
+		}},
 	{file: ".docket.example.yml",
-		present: []string{"off means nothing is posted or reported, unless docket's own"}},
+		present: []string{
+			"off means nothing is posted or reported, unless docket's own",
+			"an automatic ticket update whose comment or attachments contain it is not posted",
+		}},
 	{file: "docs/reference/glossary.md",
 		present: []string{
 			"Docket never creates a ticket by itself",
 			"../concepts/tickets.md#why-docket-never-creates-a-ticket-by-itself",
 			"or by itself after an event whose switch is on",
-			"An automatic update in a private repository posts nothing and reports one line.",
+			"An automatic update there is posted only when the leak check finds nothing in the comment or any attachment.",
+			"### Leak check",
+			"- [Leak check](#leak-check)",
 		},
-		absent: []string{"to a change's linked ticket when you ask. It posts"}},
+		absent: []string{
+			"to a change's linked ticket when you ask. It posts",
+			"An automatic update in a private repository posts nothing and reports one line.",
+		}},
 	{file: "docs/reference/skills-and-agents.md",
-		present: []string{"when you ask, or automatically after an event whose `tickets.auto` switch is on"},
-		absent:  []string{"linked ticket when you ask (spec written"}},
+		present: []string{
+			"when you ask, or automatically after an event whose `tickets.auto` switch is on",
+			"an automatic update there is posted only when a final leak check finds nothing in it",
+		},
+		absent: []string{
+			"linked ticket when you ask (spec written",
+			"an automatic update there posts nothing",
+		}},
 }
 
 // autoTicketViolations returns one message per missing present phrase and per
@@ -205,7 +231,7 @@ func TestAutoTicketUpdateContracts(t *testing.T) {
 		}
 	})
 
-	const floor = 93
+	const floor = 107
 	checks := 0
 	for _, c := range autoTicketContracts {
 		body := readRepoFile(t, c.file)

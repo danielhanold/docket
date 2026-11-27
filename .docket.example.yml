@@ -160,10 +160,11 @@ review:
 
 leak_check:
   # match_word — true (default): in a private repository, a push or pull request whose commits,
-  # added lines, added paths, or PR text contain the bare word "docket" is refused. false: let
-  # the bare word through, for a codebase where it is an ordinary word (court or shipping
-  # dockets); markers, trailers, `.docket` paths, `dckt`, and change ids are still refused.
-  # A shared repository never runs the check.
+  # added lines, added paths, or PR text contain the bare word "docket" is refused, and
+  # an automatic ticket update whose comment or attachments contain it is not posted.
+  # false: let the bare word through, for a codebase where it is an ordinary word (court or
+  # shipping dockets); markers, trailers, `.docket` paths, `dckt`, and change ids are still caught.
+  # A shared repository runs neither check.
   # scope: any layer
   match_word: true
 
