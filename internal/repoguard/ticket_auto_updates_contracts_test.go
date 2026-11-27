@@ -144,6 +144,7 @@ var autoTicketContracts = []autoTicketContract{
 		},
 		absent: []string{
 			"change_created", "was once planned", "dropped",
+			"](../adrs/0144-",
 			"an automatic update posts nothing and reports one line",
 			"From then on, in a shared repository, the switches",
 		}},
@@ -231,7 +232,7 @@ func TestAutoTicketUpdateContracts(t *testing.T) {
 		}
 	})
 
-	const floor = 107
+	const floor = 108
 	checks := 0
 	for _, c := range autoTicketContracts {
 		body := readRepoFile(t, c.file)
