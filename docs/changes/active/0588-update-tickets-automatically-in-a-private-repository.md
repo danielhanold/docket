@@ -2,7 +2,7 @@
 id: 588
 slug: 'update-tickets-automatically-in-a-private-repository'
 title: 'Update tickets automatically in a private repository'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'feat'
 deliverable: 'pr'
@@ -20,7 +20,7 @@ auto_groomable:
 hold:
 branch_prefix:
 branch: 'feat/update-tickets-automatically-in-a-private-repository'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/459'
 blocked_by:
 reconciled: true
 ---
@@ -63,3 +63,12 @@ A new read-only operation, `docket leak check --file …`, exposes the leak matc
 ### 2026-11-27
 
 Unchanged against main `fb655faed`: dependencies #586 and #587 are done, the spec's traced anchors (`leakOptions`, `runLeakCheck`, `leakCheckApplies`, automatic.md's private clause) still hold, and scope stands.
+
+## Build evidence
+
+<!-- docket:build-evidence:start -->
+command:  go run ./cmd/docket development test
+result:   green
+head_sha: 60d173e54464683a9954c9bfc6b1f71b358f51ee
+ran_at:   2026-11-27T03:06:56Z
+<!-- docket:build-evidence:end -->
