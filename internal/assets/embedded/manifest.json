@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:2013c7c99b4b0ef2c97e55ff0e096680ad1382e2610e4f9ffc2b13c8609824bb",
+  "asset_set_id": "sha256:5f460689cd95091df5f29689c5f2ad7b4c3d671e0da72a72255c9eb12c8c8d9d",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -462,22 +462,22 @@
       "path": "skills/docket-update-ticket/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 10585,
-      "sha256": "961a6ed44d1b06bcd670a8079c798751834d67eea1795bfe355ce3561f674169"
+      "size": 10738,
+      "sha256": "0a1826e15bad20472e9d6e60852ac917ea663978f035762680018a94136a7ed9"
     },
     {
       "path": "skills/docket-update-ticket/references/automatic.md",
       "role": "skill",
       "mode": 420,
-      "size": 2468,
-      "sha256": "79ec67d2b4824d07841efc17e51bfcc82bf9bc1f143a32b9bdabfd1b8ebc3543"
+      "size": 2764,
+      "sha256": "aca5c7c9e5fd9253e4b8e573ee1bc05ad6e690ce820c2438519661708468bec9"
     },
     {
       "path": "skills/docket-update-ticket/references/private.md",
       "role": "skill",
       "mode": 420,
-      "size": 4084,
-      "sha256": "3c23a9f05dec7f4c155cc1e87e95f5d3444ba120fe9cface60738be6bfa52521"
+      "size": 6158,
+      "sha256": "b7a93358374766ce5a55847554b888a21f32e3ac3af426264c9f06e8a041e2d4"
     },
     {
       "path": "skills/docket-update-ticket/references/shared.md",
