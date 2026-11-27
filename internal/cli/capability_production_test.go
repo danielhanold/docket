@@ -252,7 +252,7 @@ func TestCapabilitiesIsRepositoryConfigAssetAndWriteIndependent(t *testing.T) {
 }
 
 // TestCapabilitiesPayloadWithinByteBudget is the gating oracle for compactness:
-// the emitted catalog must fit the 16384-byte (16 KB) design ceiling, and it
+// the emitted catalog must fit the 17408-byte (17 KB) design ceiling, and it
 // must carry no human help prose — the catalog is a machine bootstrap, not a
 // second copy of --help. Growth past the ceiling is a design event (spec:
 // Compactness boundary), never a truncation or per-skill-filter opportunity.
@@ -278,15 +278,19 @@ func TestCapabilitiesIsRepositoryConfigAssetAndWriteIndependent(t *testing.T) {
 // the two independent catalog growths together crossed the line (15382, over by
 // 22 bytes). That is the guard working as designed — it surfaced the combined
 // design event that neither side could see in isolation.
+// It was raised a fifth one KB step (16 KB → 17 KB) for change 0588, whose spec
+// deliberately adds the `leak.check` operation to the catalog; its entry took
+// the catalog from 16382 to 16526 bytes — the identical conscious design event,
+// a one-line invocation stub and no inlined schemas.
 func TestCapabilitiesPayloadWithinByteBudget(t *testing.T) {
 	out, errS, code := runCLI(t, "capabilities", "--json")
 	if code != 0 || errS != "" {
 		t.Fatalf("out=%q err=%q code=%d", out, errS, code)
 	}
 	n := len(out)
-	t.Logf("capabilities payload: %d bytes (budget 16384)", n)
-	if n > 16*1024 {
-		t.Fatalf("catalog is %d bytes, over the 16KB design ceiling — growth is a design event (spec: Compactness boundary), not a truncation opportunity", n)
+	t.Logf("capabilities payload: %d bytes (budget 17408)", n)
+	if n > 17*1024 {
+		t.Fatalf("catalog is %d bytes, over the 17KB design ceiling — growth is a design event (spec: Compactness boundary), not a truncation opportunity", n)
 	}
 	// Content-exclusion: no help-prose fields. The catalog names signatures and
 	// effects, never Short/Long/Example/Help text.
