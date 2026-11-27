@@ -28,6 +28,7 @@ var autoTicketContracts = []autoTicketContract{
 			"or when a docket workflow invokes it after an event whose `tickets.auto` switch is on",
 			"read `references/automatic.md` now (blocking)",
 			"When a docket workflow invoked this skill, that workflow has already run the startup check: run none here.",
+			"on the automatic path in a private repository it also runs the `leak.check` operation over everything it is about to post",
 		},
 		absent: []string{
 			"Nothing here runs on its own after an event",
@@ -38,8 +39,10 @@ var autoTicketContracts = []autoTicketContract{
 			"The caller supplies the change and the event.",
 			"Never ask and never wait.",
 			"post nothing and report one line",
-			"when `visibility` is anything other than `shared`",
-			"automatic updates are not available in a private repository",
+			"when `visibility` is neither `shared` nor `private` (`the repository's visibility could not be read`)",
+			"When `visibility` is `shared`, **read `references/shared.md` now (blocking)**",
+			"When `visibility` is `private`, **read `references/private.md` now (blocking)** and follow its unattended rules",
+			"The one exception is private delivery's stop on a rewrite",
 			"when no connector for `ticket.provider` is available in this session",
 			"an uncertain outcome is reported as uncertain",
 			"**`event.switch` is `false`:** post nothing and say nothing, whatever the caller directed.",
@@ -47,10 +50,31 @@ var autoTicketContracts = []autoTicketContract{
 			"Never retry, and never touch the calling run",
 			"no halt, no blocked marker, no changed disposition, and no metadata write",
 			"A duplicate comment is acceptable and is deleted by hand.",
-			"Never load `references/private.md` on this path.",
 			"**No startup check of its own.**",
 			"take `metadata_worktree_path` from the caller's `repository.prepare` context",
 			"A `refused` or `error` answer from a docket read on this path is never a stop: post nothing, report one line (`Not posted to #<id> (<event>): <reason>.`), and return to the workflow.",
+		},
+		absent: []string{
+			"when `visibility` is anything other than `shared`",
+			"automatic updates are not available in a private repository",
+			"Never load `references/private.md` on this path.",
+		}},
+	// The automatic path in a private repository: private delivery's
+	// unattended rules, under which a final leak check stands in for the
+	// person's review of the cleanup.
+	{file: "skills/docket-update-ticket/references/private.md",
+		present: []string{
+			"**Unattended.**",
+			"ask nobody; on a word-check hit, return the path and the lines instead of stopping",
+			"A word-check hit posts nothing: no attachment and no comment; report one line",
+			"**No before → after.** Show and report no rewrite list, and post without anyone's go.",
+			"After the comment is written and the attachments are final (a renamed file included), and before anything is uploaded",
+			"plain text with real line breaks, in Markdown or the ticket system's own markup, never an escaped or structured body such as a JSON document",
+			"converting the formatting only, never the words",
+			"run the `leak.check` operation (argv from the capability catalog) once, with `--file <comment file>`, one `--file` per attachment, and `--json`",
+			"`result` `applied` with `context.clean` `true`: post, attachments first, comment last.",
+			"Any other result means the check did not run, which is never clean: post nothing and report one line naming the reason.",
+			"**Never fix and check again.**",
 		}},
 	{file: "skills/docket-convention/SKILL.md",
 		present: []string{
@@ -181,7 +205,7 @@ func TestAutoTicketUpdateContracts(t *testing.T) {
 		}
 	})
 
-	const floor = 76
+	const floor = 93
 	checks := 0
 	for _, c := range autoTicketContracts {
 		body := readRepoFile(t, c.file)
