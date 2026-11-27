@@ -79,6 +79,7 @@ func TestEnvelopeNotShadowed(t *testing.T) {
 		{"adr.record", newADRResult(OperationADRRecord, ResultApplied, ADRResult{})},
 		{"adr.supersede", newADRResult(OperationADRSupersede, ResultApplied, ADRResult{})},
 		{"adr.reverse", newADRResult(OperationADRReverse, ResultApplied, ADRResult{})},
+		{"leak.check", newLeakCheckResult(ResultApplied, "", "", &LeakCheckContext{Clean: true})},
 	}
 
 	for _, tc := range cases {

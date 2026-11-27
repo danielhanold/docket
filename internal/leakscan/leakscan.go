@@ -32,6 +32,7 @@ const (
 	SourceAddedPath     Source = "added-path"
 	SourcePRTitle       Source = "pr-title"
 	SourcePRBody        Source = "pr-body"
+	SourceFile          Source = "file" // a file checked by the leak check operation
 )
 
 // Options configures a scan. MatchWord enables the bare-word docket rule;
